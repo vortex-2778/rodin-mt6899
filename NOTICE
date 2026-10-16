@@ -1,0 +1,9 @@
+Rodin Essential — Kotlin + Jetpack Compose rewrite (rodin-mt6899)
+
+This repository is an independent source rewrite of the application interface of
+"Rodin Essential" (https://github.com/NEESCHAL-3/Rodin-Essential), which is
+licensed under the Apache License, Version 2.0.
+
+The privileged Rust daemon (rodin_essentiald), its AOSP/KernelSU integration,
+and every hardware-control operation it owns are used unmodified. No daemon
+source is redistributed in this repository.
