@@ -33,10 +33,6 @@ object RodinPlatform {
 
     // ---------------------------------------------------------------- haptics
 
-    private val hapticConstants = mapOf(
-        1 to HapticFeedbackConstants.VIRTUAL_KEY,
-        2 to HapticFeedbackConstants.CONTEXT_CLICK,
-    )
 
     private fun hapticConstant(kind: Int, sdk: Int): Int? = when (kind) {
         1 -> HapticFeedbackConstants.VIRTUAL_KEY
