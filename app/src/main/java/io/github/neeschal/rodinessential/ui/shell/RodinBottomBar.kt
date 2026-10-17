@@ -6,9 +6,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -25,7 +23,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Favorite
@@ -41,6 +38,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,7 +48,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Paint
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asFrameworkPaint
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
@@ -59,10 +56,12 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.neeschal.rodinessential.ui.RodinScreen
@@ -102,16 +101,20 @@ private val SECTION_COLORS = listOf(
 private val dockEaseOutCubic = CubicBezierEasing(0.215f, 0.61f, 0.355f, 1f)
 
 /**
- * The floating dock: four destinations, one elastic indicator and a
- * drag handoff to the root pager. A tab tap has one destination, not a
+ * The floating dock: four destinations, one elastic indicator and a drag
+ * handoff to the root pager. A tab tap has one destination, not a
  * sightseeing tour of the other hubs.
+ *
+ * The dock drag is position-owned: the finger's x position directly selects
+ * the page, exactly like the original `_pageForPosition`.
  */
 @Composable
 fun RodinBottomBar(
-    pagerState: PagerState,
+    pageProvider: () -> Float,
     currentRoot: RodinScreen,
     onSelect: (RodinScreen) -> Unit,
     onDragStart: () -> Unit,
+    onDockDrag: (dxPx: Float, widthPx: Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -120,6 +123,11 @@ fun RodinBottomBar(
     val scope = rememberCoroutineScope()
     val layoutDirection = LocalLayoutDirection.current
 
+    val currentOnSelect by rememberUpdatedState(onSelect)
+    val currentOnDragStart by rememberUpdatedState(onDragStart)
+    val currentOnDockDrag by rememberUpdatedState(onDockDrag)
+    val currentPage by rememberUpdatedState(pageProvider)
+
     val safePadding = WindowInsets.safeDrawing.asPaddingValues()
     val navPadding = WindowInsets.navigationBars.asPaddingValues()
     val bottomClearance = RodinBottomLayout.navigationClearance(
@@ -127,24 +135,11 @@ fun RodinBottomBar(
     )
 
     val elasticity = remember { Animatable(0f) }
-    var barWidthPx by remember { mutableFloatStateOf(1f) }
+    var lastDockPage by remember { mutableFloatStateOf(0f) }
     var dragging by remember { mutableStateOf(false) }
     var lastDragIndex by remember { mutableStateOf<Int?>(null) }
 
-    fun pageFraction(): Float {
-        val offset = pagerState.currentPageOffsetFraction
-        val safeOffset = if (offset.isFinite()) offset else 0f
-        return (pagerState.currentPage + safeOffset).coerceIn(0f, 3f)
-    }
-
-    fun settleDrag(velocity: Float) {
-        if (!dragging) return
-        dragging = false
-        lastDragIndex = null
-        val page = pageFraction()
-        val itemWidth = (barWidthPx / BOTTOM_SCREENS.size).coerceAtLeast(1f)
-        val projected = page + (velocity / itemWidth * 0.06f).coerceIn(-0.5f, 0.5f)
-        val target = projected.roundToInt().coerceIn(0, BOTTOM_SCREENS.size - 1)
+    fun releaseElasticity() {
         scope.launch {
             if (reduced) {
                 elasticity.snapTo(0f)
@@ -156,28 +151,24 @@ fun RodinBottomBar(
                 )
             }
         }
-        RodinHaptics.confirm()
-        onSelect(BOTTOM_SCREENS[target])
     }
 
-    val draggableState = rememberDraggableState { delta ->
-        // Ease the decorative stretch, never the finger-owned page position.
-        val targetElasticity = (delta / 13f).coerceIn(-1f, 1f)
-        scope.launch {
-            if (reduced) {
-                elasticity.snapTo(0f)
-            } else {
-                elasticity.animateTo(targetElasticity, tween(90, easing = dockEaseOutCubic))
-            }
-        }
-        pagerState.dispatchRawDelta(delta)
-        val index = pageFraction().roundToInt().coerceIn(0, BOTTOM_SCREENS.size - 1)
-        val previous = lastDragIndex
-        if (previous != null && previous != index) RodinHaptics.frequentSegment()
-        lastDragIndex = index
+    fun settleDockDrag(velocity: Float, widthPx: Float) {
+        if (!dragging) return
+        dragging = false
+        lastDragIndex = null
+        val itemWidth = (widthPx / BOTTOM_SCREENS.size).coerceAtLeast(1f)
+        val projected = lastDockPage +
+            (velocity / itemWidth * 0.06f).coerceIn(-0.5f, 0.5f)
+        val target = projected.roundToInt().coerceIn(0, BOTTOM_SCREENS.size - 1)
+        releaseElasticity()
+        RodinHaptics.confirm()
+        // onSelect replaces the dock drag with exactly one target animation.
+        currentOnSelect(BOTTOM_SCREENS[target])
     }
 
     val selectedIndex = BOTTOM_SCREENS.indexOf(currentRoot).coerceAtLeast(0)
+    val page = currentPage().coerceIn(0f, (BOTTOM_SCREENS.size - 1).toFloat())
 
     Box(
         modifier = modifier
@@ -186,8 +177,7 @@ fun RodinBottomBar(
                 start = (10f + safePadding.calculateLeftPadding(layoutDirection).value).dp,
                 end = (10f + safePadding.calculateRightPadding(layoutDirection).value).dp,
                 bottom = (bottomClearance + RodinBottomLayout.DOCK_GAP).dp,
-            )
-            .onSizeChanged { barWidthPx = it.width.toFloat() },
+            ),
     ) {
         Box(
             Modifier
@@ -195,6 +185,8 @@ fun RodinBottomBar(
                 .rodinDockShadow(RoundedCornerShape(22.dp), dark, colors.primary)
                 .clip(RoundedCornerShape(22.dp)),
         ) {
+            // The original blurs the backdrop behind the dock; Compose 1.7 has
+            // no public backdrop filter, so the same translucency carries it.
             RodinTouchLight(accent = SECTION_COLORS[selectedIndex], radius = 22f) {
                 Box(
                     Modifier
@@ -217,21 +209,6 @@ fun RodinBottomBar(
                             color = Color.White.copy(alpha = if (dark) 0.19f else 0.88f),
                             shape = RoundedCornerShape(22.dp),
                         )
-                        .draggable(
-                            state = draggableState,
-                            orientation = Orientation.Horizontal,
-                            onDragStarted = {
-                                onDragStart()
-                                dragging = true
-                                lastDragIndex = null
-                                scope.launch {
-                                    elasticity.stop()
-                                    elasticity.snapTo(0f)
-                                }
-                                RodinHaptics.segment()
-                            },
-                            onDragStopped = { velocity -> settleDrag(velocity) },
-                        )
                         .drawWithContent {
                             drawContent()
                             // Hairline highlight along the top edge.
@@ -245,9 +222,68 @@ fun RodinBottomBar(
                         }
                         .padding(6.dp),
                 ) {
-                    BoxWithConstraints(Modifier.fillMaxSize()) {
+                    BoxWithConstraints(
+                        Modifier
+                            .fillMaxSize()
+                            .pointerInput(Unit) {
+                                val widthPx = size.width.toFloat()
+                                val tracker = VelocityTracker()
+                                detectHorizontalDragGestures(
+                                    onDragStart = { offset ->
+                                        currentOnDragStart()
+                                        if (widthPx > 0f) {
+                                            dragging = true
+                                            lastDragIndex = null
+                                            scope.launch {
+                                                elasticity.stop()
+                                                elasticity.snapTo(0f)
+                                            }
+                                            RodinHaptics.segment()
+                                            tracker.resetTracking()
+                                            lastDockPage = dockPageFor(offset.x, widthPx)
+                                            currentOnDockDrag(offset.x, widthPx)
+                                        }
+                                    },
+                                    onHorizontalDrag = { change, dragAmount ->
+                                        if (!dragging) return@detectHorizontalDragGestures
+                                        tracker.addPointerInputChange(change)
+                                        // Ease the decorative stretch, never the
+                                        // finger-owned page position.
+                                        val targetElasticity =
+                                            (dragAmount / 13f).coerceIn(-1f, 1f)
+                                        scope.launch {
+                                            if (reduced) {
+                                                elasticity.snapTo(0f)
+                                            } else {
+                                                elasticity.animateTo(
+                                                    targetElasticity,
+                                                    tween(90, easing = dockEaseOutCubic),
+                                                )
+                                            }
+                                        }
+                                        lastDockPage = dockPageFor(change.position.x, widthPx)
+                                        currentOnDockDrag(change.position.x, widthPx)
+                                        val index = lastDockPage
+                                            .roundToInt()
+                                            .coerceIn(0, BOTTOM_SCREENS.size - 1)
+                                        val previous = lastDragIndex
+                                        if (previous != null && previous != index) {
+                                            RodinHaptics.frequentSegment()
+                                        }
+                                        lastDragIndex = index
+                                    },
+                                    onDragEnd = {
+                                        if (!dragging) return@detectHorizontalDragGestures
+                                        settleDockDrag(tracker.calculateVelocity().x, widthPx)
+                                    },
+                                    onDragCancel = {
+                                        if (!dragging) return@detectHorizontalDragGestures
+                                        settleDockDrag(0f, widthPx)
+                                    },
+                                )
+                            },
+                    ) {
                         val itemWidth = maxWidth / BOTTOM_SCREENS.size
-                        val page = pageFraction()
                         val lower = floor(page).toInt().coerceIn(0, BOTTOM_SCREENS.size - 1)
                         val upper = ceil(page).toInt().coerceIn(0, BOTTOM_SCREENS.size - 1)
                         val indicatorColor = lerp(
@@ -314,7 +350,7 @@ fun RodinBottomBar(
                                     ) {
                                         PressScale(
                                             enableLight = false,
-                                            onTap = { onSelect(screen) },
+                                            onTap = { currentOnSelect(screen) },
                                         ) {
                                             Box(
                                                 Modifier
@@ -367,8 +403,14 @@ fun RodinBottomBar(
     }
 }
 
+/** The finger's dock position selects the page, like the original. */
+private fun dockPageFor(dxPx: Float, widthPx: Float): Float {
+    val itemWidth = (widthPx / BOTTOM_SCREENS.size).coerceAtLeast(1f)
+    return ((dxPx / itemWidth) - 0.5f).coerceIn(0f, (BOTTOM_SCREENS.size - 1).toFloat())
+}
+
 /** The dock's two-layer shadow: a deep drop and a faint tinted glow. */
-private fun Modifier.rodinDockShadow(shape: Shape, dark: Boolean, primary: Color): Modifier =
+private fun Modifier.rodinDockShadow(shape: androidx.compose.ui.graphics.Shape, dark: Boolean, primary: Color): Modifier =
     this.drawWithContent {
         val outline = shape.createOutline(size, layoutDirection, this)
         drawIntoCanvas { canvas ->
@@ -400,7 +442,7 @@ private fun Modifier.rodinDockShadow(shape: Shape, dark: Boolean, primary: Color
 
 /** The indicator's tinted glow, kept below the gradient fill. */
 private fun Modifier.shadowedIndicator(
-    radius: androidx.compose.ui.unit.Dp,
+    radius: Dp,
     indicatorColor: Color,
     dark: Boolean,
 ): Modifier = this.drawWithContent {
