@@ -4,7 +4,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -136,7 +135,10 @@ fun RodinTouchLight(
         },
     ) {
         content()
-        Canvas(Modifier.fillMaxSize()) {
+        // The overlay must match the wrapped widget's size without inflating
+        // it: a fillMaxSize sibling would force the whole Box (and therefore
+        // the dock that wraps it) to the parent's full available height.
+        Canvas(Modifier.matchParentSize()) {
             val strength = power.coerceIn(0f, 1f)
             if (strength <= 0f || size.width <= 0f || size.height <= 0f) return@Canvas
             val bounds = Rect(Offset.Zero, size)
