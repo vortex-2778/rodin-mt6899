@@ -48,7 +48,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.neeschal.rodinessential.backend.RodinBackendSnapshot
-import io.github.neeschal.rodinessential.ui.components.HeroTilePlaceholder
 import io.github.neeschal.rodinessential.ui.components.IconTile
 import io.github.neeschal.rodinessential.ui.components.PressScale
 import io.github.neeschal.rodinessential.ui.components.SurfaceCard
@@ -82,21 +81,21 @@ fun rodinTouchLabel(profile: Int): String = when (profile) {
     else -> "OEM Control"
 }
 
-private fun rodinDisplayMode(snapshot: RodinBackendSnapshot): String = when (snapshot.displayColor) {
+fun rodinDisplayMode(snapshot: RodinBackendSnapshot): String = when (snapshot.displayColor) {
     0 -> "Original PRO"
     1 -> "Vivid"
     2 -> "Saturated"
     else -> if (snapshot.ready) "OEM Control" else "—"
 }
 
-private fun rodinProfileAccent(profile: Int): Color = when (profile) {
+fun rodinProfileAccent(profile: Int): Color = when (profile) {
     2 -> Color(0xFF35C997)
     1 -> Color(0xFFFFB84D)
     3 -> Color(0xFFFF5252)
     else -> Color(0xFF4EA8DE)
 }
 
-private fun rodinCoreColor(snapshot: RodinBackendSnapshot, cpu: Int): Color {
+fun rodinCoreColor(snapshot: RodinBackendSnapshot, cpu: Int): Color {
     if (!snapshot.cpuOnline(cpu)) return Color(0xFF252A31)
     if (cpu == 7) return Color(0xFFFF8E3C)
     if (cpu >= 4) return Color(0xFFA066FF)
