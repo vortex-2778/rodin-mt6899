@@ -172,3 +172,18 @@ fun DiagnosticRow(
         }
     }
 }
+
+/** The verified / drift / unset triple of every persisted selection. */
+@Composable
+fun PersistenceStatusRow(label: String, state: Int, modifier: Modifier = Modifier) {
+    DiagnosticRow(
+        label = label,
+        good = state == 0,
+        detail = when (state) {
+            0 -> "Verified"
+            1 -> "Vendor drift detected · guard will reassert"
+            else -> "No persisted selection yet"
+        },
+        modifier = modifier,
+    )
+}
