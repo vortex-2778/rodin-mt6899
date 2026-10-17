@@ -1006,6 +1006,243 @@ fun SystemColorsPanel(
             )
             Spacer(Modifier.height(10.dp))
         }
+        if (!backendOnline ||
+            palette.failed ||
+            (palette.ready && !palette.supported)
+        ) {
+            PaletteNotice(
+                icon = Icons.Rounded.Info,
+                text = when {
+                    !backendOnline -> if (connection == RodinConnectionState.CONNECTING) {
+                        "Connecting to the system service. You can preview colors " +
+                            "while it connects."
+                    } else {
+                        "Preview only — the system service is offline. The updated " +
+                            "Rodin backend is needed to apply colors."
+                    }
+                    palette.failed -> palette.errorMessage
+                    else -> "This ROM does not expose Android’s native Material You " +
+                        "update path. Preview remains available, but Rodin will " +
+                        "not claim or fabricate a system-wide result."
+                },
+            )
+            Spacer(Modifier.height(12.dp))
+        }
+        if (isBusy()) {
+            Row(verticalAlignment = Alignment.Top) {
+                Box(Modifier.padding(top = 2.dp)) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                    )
+                }
+                Spacer(Modifier.width(9.dp))
+                Text(
+                    text = if (pendingRevision != null) {
+                        "Updating Android colors…"
+                    } else {
+                        "Reading Android colors…"
+                    },
+                    modifier = Modifier.weight(1f),
+                    style = description,
+                )
+            }
+        }
+        if (notice != null && !isBusy()) {
+            Spacer(Modifier.height(12.dp))
+            PaletteNotice(icon = Icons.Rounded.Info, text = notice!!)
+        }
+        Spacer(Modifier.height(20.dp))
+        SurfaceCard {
+            Column(Modifier.fillMaxWidth()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Android’s current colors",
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.W700,
+                        ),
+                    )
+                    val refreshTap: (() -> Unit)? = if (isBusy()) {
+                        null
+                    } else {
+                        ({
+                            notice = null
+                            onRefresh()
+                            onRefreshContrast?.invoke()
+                        })
+                    }
+                    PressScale(onTap = refreshTap) {
+                        Box(
+                            Modifier
+                                .size(38.dp)
+                                .background(
+                                    if (dark) {
+                                        Color.White.copy(alpha = 0.08f)
+                                    } else {
+                                        Color.Black.copy(alpha = 0.05f)
+                                    },
+                                    CircleShape,
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Refresh,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                    }
+                }
+                if (palette.hasReadback) {
+                    Text(
+                        text = when (palette.mode) {
+                            0 -> "Wallpaper colors"
+                            1 -> "Custom · ${paletteHex(palette.seed)}"
+                            else -> "System preset"
+                        },
+                        style = description,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Row(verticalAlignment = Alignment.Top) {
+                        palette.nativeColors.forEachIndexed { index, rgb ->
+                            Box(Modifier.weight(1f)) {
+                                Column(
+                                    Modifier.padding(end = if (index == 4) 0.dp else 6.dp),
+                                ) {
+                                    Box(
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .height(38.dp)
+                                            .background(previewColor(rgb), RoundedCornerShape(12.dp)),
+                                    )
+                                    Spacer(Modifier.height(6.dp))
+                                    Text(
+                                        text = if (index < 3) {
+                                            "Accent ${index + 1}"
+                                        } else {
+                                            "Neutral ${index - 2}"
+                                        },
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        style = description.copy(fontSize = 10.sp),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        text = if (palette.ready && backendOnline) {
+                            "Five tonal families, read from Android at tone 500."
+                        } else {
+                            "Last successful readback. Refresh to check the current palette."
+                        },
+                        style = description.copy(fontSize = 11.sp),
+                    )
+                } else {
+                    Text(
+                        text = if (palette.busy) {
+                            "Reading native palette resources…"
+                        } else {
+                            "No native readback yet. Preview colors are not reported as applied."
+                        },
+                        style = description,
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        if (palette.contrastSupported || palette.contrastBusy) {
+            SurfaceCard {
+                Column(Modifier.fillMaxWidth()) {
+                    Row(verticalAlignment = Alignment.Top) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                text = "Material contrast",
+                                style = MaterialTheme.typography.titleSmall.copy(
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.W700,
+                                ),
+                            )
+                            Spacer(Modifier.height(3.dp))
+                            Text(
+                                text = "Adjusts Android’s native color roles, not display contrast.",
+                                style = description,
+                            )
+                        }
+                        if (palette.contrastBusy) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(17.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        listOf("Low" to -1000, "Standard" to 0, "High" to 1000)
+                            .forEach { (label, value) ->
+                                ChoiceChip(
+                                    selected = palette.contrastReady && palette.contrast == value,
+                                    onClick = {
+                                        onSelectionFeedback()
+                                        onSetContrast?.invoke(value)
+                                    },
+                                    enabled = backendOnline &&
+                                        !palette.contrastBusy &&
+                                        palette.contrastSupported,
+                                    label = { Text(label, fontSize = 12.sp) },
+                                )
+                            }
+                    }
+                    if (palette.hasNativeRoles) {
+                        Spacer(Modifier.height(14.dp))
+                        Row {
+                            Box(Modifier.weight(1f)) {
+                                MaterialRolePreview(
+                                    label = "Light",
+                                    background = previewColor(palette.lightContainer),
+                                    foreground = previewColor(palette.lightOnContainer),
+                                )
+                            }
+                            Spacer(Modifier.width(10.dp))
+                            Box(Modifier.weight(1f)) {
+                                MaterialRolePreview(
+                                    label = "Dark",
+                                    background = previewColor(palette.darkContainer),
+                                    foreground = previewColor(palette.darkOnContainer),
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = "Container and text roles read directly from Android.",
+                            style = description.copy(fontSize = 11.sp),
+                        )
+                    }
+                    if (palette.contrastFailed) {
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            text = "This ROM did not verify the requested native " +
+                                "contrast. Its previous value was restored.",
+                            style = description.copy(color = colors.error),
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+        }
+        Text(
+            text = "Android saves your choice across restarts. No background reapply " +
+                "loop is used. OEM surfaces, apps and keyboards with fixed themes " +
+                "can ignore the palette even when Android applies it correctly.",
+            style = description,
+        )
+        Spacer(Modifier.height(12.dp))
         /* RODIN_SYSTEM_COLORS_UI */
     }
 }
