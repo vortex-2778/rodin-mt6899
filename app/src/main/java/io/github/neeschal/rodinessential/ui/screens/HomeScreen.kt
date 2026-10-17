@@ -645,25 +645,27 @@ private fun HomeQuickAction(
         ) {
             IconTile(accent = accent, size = 31.dp, icon = icon)
             Spacer(Modifier.width(7.dp))
-            Text(
-                text = title,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.labelLarge.copy(
-                    fontSize = 11.3.sp,
-                    fontWeight = FontWeight.W800,
-                ),
-            )
-            Spacer(Modifier.width(4.dp))
-            Text(
-                text = subtitle,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontSize = 8.8.sp,
-                    color = colors.onSurfaceVariant,
-                ),
-            )
+            Column(Modifier.weight(1f, fill = false)) {
+                Text(
+                    text = title,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontSize = 11.3.sp,
+                        fontWeight = FontWeight.W800,
+                    ),
+                )
+                Spacer(Modifier.height(1.dp))
+                Text(
+                    text = subtitle,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontSize = 8.8.sp,
+                        color = colors.onSurfaceVariant,
+                    ),
+                )
+            }
         }
     }
 }
