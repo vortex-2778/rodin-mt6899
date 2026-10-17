@@ -200,7 +200,6 @@ fun RodinBottomBar(
                     Modifier
                         .fillMaxWidth()
                         .height(RodinBottomLayout.DOCK_HEIGHT.dp)
-                        .padding(6.dp)
                         .clip(RoundedCornerShape(22.dp))
                         .background(
                             Brush.linearGradient(
@@ -243,7 +242,8 @@ fun RodinBottomBar(
                                 strokeWidth = 0.7.dp.toPx(),
                                 cap = StrokeCap.Round,
                             )
-                        },
+                        }
+                        .padding(6.dp),
                 ) {
                     BoxWithConstraints(Modifier.fillMaxSize()) {
                         val itemWidth = maxWidth / BOTTOM_SCREENS.size
@@ -404,5 +404,19 @@ private fun Modifier.shadowedIndicator(
     indicatorColor: Color,
     dark: Boolean,
 ): Modifier = this.drawWithContent {
+    val outline = RoundedCornerShape(radius).createOutline(size, layoutDirection, this)
+    drawIntoCanvas { canvas ->
+        val paint = Paint().asFrameworkPaint().apply {
+            isAntiAlias = true
+            color = android.graphics.Color.TRANSPARENT
+            setShadowLayer(
+                12f,
+                0f,
+                4f,
+                indicatorColor.copy(alpha = if (dark) 0.10f else 0.07f).toArgb(),
+            )
+        }
+        canvas.nativeCanvas.drawOutline(outline, paint)
+    }
     drawContent()
 }
