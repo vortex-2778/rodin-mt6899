@@ -68,7 +68,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import io.github.neeschal.rodinessential.backend.PerAppBackend
-import io.github.neeschal.rodinessential.ui.components.HeroCard
 import io.github.neeschal.rodinessential.ui.components.RodinHaptics
 import io.github.neeschal.rodinessential.ui.components.StatusPill
 import io.github.neeschal.rodinessential.ui.components.SurfaceCard
