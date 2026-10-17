@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
@@ -414,6 +415,7 @@ private fun dockPageFor(dxPx: Float, widthPx: Float): Float {
 private fun Modifier.rodinDockShadow(shape: androidx.compose.ui.graphics.Shape, dark: Boolean, primary: Color): Modifier =
     this.drawWithContent {
         val outline = shape.createOutline(size, layoutDirection, this)
+        val androidOutline = outline.toAndroidPath()
         drawIntoCanvas { canvas ->
             val drop = Paint().asFrameworkPaint().apply {
                 isAntiAlias = true
@@ -425,7 +427,7 @@ private fun Modifier.rodinDockShadow(shape: androidx.compose.ui.graphics.Shape, 
                     Color.Black.copy(alpha = if (dark) 0.34f else 0.16f).toArgb(),
                 )
             }
-            canvas.nativeCanvas.drawOutline(outline, drop)
+            canvas.nativeCanvas.drawPath(androidOutline, drop)
             val glow = Paint().asFrameworkPaint().apply {
                 isAntiAlias = true
                 color = android.graphics.Color.TRANSPARENT
@@ -436,7 +438,7 @@ private fun Modifier.rodinDockShadow(shape: androidx.compose.ui.graphics.Shape, 
                     primary.copy(alpha = if (dark) 0.06f else 0.04f).toArgb(),
                 )
             }
-            canvas.nativeCanvas.drawOutline(outline, glow)
+            canvas.nativeCanvas.drawPath(androidOutline, glow)
         }
         drawContent()
     }
@@ -448,6 +450,7 @@ private fun Modifier.shadowedIndicator(
     dark: Boolean,
 ): Modifier = this.drawWithContent {
     val outline = RoundedCornerShape(radius).createOutline(size, layoutDirection, this)
+    val androidOutline = outline.toAndroidPath()
     drawIntoCanvas { canvas ->
         val paint = Paint().asFrameworkPaint().apply {
             isAntiAlias = true
@@ -459,7 +462,47 @@ private fun Modifier.shadowedIndicator(
                 indicatorColor.copy(alpha = if (dark) 0.10f else 0.07f).toArgb(),
             )
         }
-        canvas.nativeCanvas.drawOutline(outline, paint)
+        canvas.nativeCanvas.drawPath(androidOutline, paint)
     }
     drawContent()
 }
+
+/**
+ * The Flutter original rendered the dock shadows with the platform canvas;
+ * `android.graphics.Canvas.drawOutline` needs the platform outline, so mirror
+ * the Compose geometry as an android path instead. The radius order matches
+ * [androidx.compose.ui.geometry.RoundRect]: top-left, top-right, bottom-right,
+ * bottom-left.
+ */
+private fun androidx.compose.ui.graphics.Outline.toAndroidPath(): android.graphics.Path =
+    when (this) {
+        is androidx.compose.ui.graphics.Outline.Generic -> path.asAndroidPath()
+        is androidx.compose.ui.graphics.Outline.Rectangle -> android.graphics.Path().apply {
+            addRect(
+                rect.left,
+                rect.top,
+                rect.right,
+                rect.bottom,
+                android.graphics.Path.Direction.CW,
+            )
+        }
+        is androidx.compose.ui.graphics.Outline.Rounded -> android.graphics.Path().apply {
+            addRoundRect(
+                roundRect.left,
+                roundRect.top,
+                roundRect.right,
+                roundRect.bottom,
+                floatArrayOf(
+                    roundRect.topLeftCornerRadius.x,
+                    roundRect.topLeftCornerRadius.y,
+                    roundRect.topRightCornerRadius.x,
+                    roundRect.topRightCornerRadius.y,
+                    roundRect.bottomRightCornerRadius.x,
+                    roundRect.bottomRightCornerRadius.y,
+                    roundRect.bottomLeftCornerRadius.x,
+                    roundRect.bottomLeftCornerRadius.y,
+                ),
+                android.graphics.Path.Direction.CW,
+            )
+        }
+    }
