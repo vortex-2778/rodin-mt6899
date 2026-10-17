@@ -1691,3 +1691,322 @@ private fun PaletteNotice(icon: ImageVector, text: String) {
         )
     }
 }
+
+@Composable
+private fun SystemPalettePreviewPane(
+    seed: Int,
+    style: Int,
+    dark: Boolean,
+    scrubbing: Boolean,
+) {
+    val cache = remember {
+        mutableMapOf<RodinPaletteKey, Pair<ColorScheme, List<List<Int>>>>()
+    }
+    var shown by remember { mutableStateOf<RodinPaletteKey?>(null) }
+    var scheme by remember { mutableStateOf<ColorScheme?>(null) }
+    var tones by remember { mutableStateOf<List<List<Int>>?>(null) }
+    var failed by remember { mutableStateOf(false) }
+    val latestKey by rememberUpdatedState(RodinPaletteKey(seed, style, dark))
+
+    LaunchedEffect(seed, style, dark) {
+        val key = RodinPaletteKey(seed, style, dark)
+        if (shown == key) return@LaunchedEffect
+        val cached = cache.remove(key)
+        if (cached != null) {
+            cache[key] = cached
+            scheme = cached.first
+            tones = cached.second
+            shown = key
+            failed = false
+            return@LaunchedEffect
+        }
+        try {
+            // Only one job runs at a time; intermediate drag positions are
+            // replaced by the latest key, never accumulated into a backlog.
+            val colors = withContext(Dispatchers.Default) {
+                rodinGeneratePalette(key.seed, key.style, key.dark)
+            }
+            val nextScheme = rodinPreviewScheme(colors, key.dark)
+            val nextTones = rodinPreviewTonalFamilies(colors)
+            if (cache.size >= 24) cache.remove(cache.keys.first())
+            cache[key] = nextScheme to nextTones
+            if (latestKey == key) {
+                scheme = nextScheme
+                tones = nextTones
+                shown = key
+                failed = false
+            }
+        } catch (_: Exception) {
+            failed = true
+        }
+    }
+
+    Column(Modifier.fillMaxWidth()) {
+        SystemPalettePreview(
+            scheme = scheme ?: MaterialTheme.colorScheme,
+            animate = !scrubbing,
+        )
+        Spacer(Modifier.height(10.dp))
+        PaletteLab(families = tones)
+        if (failed) {
+            Text("Preview unavailable. System color controls still work.")
+        }
+    }
+}
+
+@Composable
+private fun PaletteLab(families: List<List<Int>>?) {
+    val colors = MaterialTheme.colorScheme
+    var expanded by remember { mutableStateOf(false) }
+    val rotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = tween(RodinInteractionSettings.motionDuration(180)),
+        label = "paletteLabRotation",
+    )
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .background(
+                colors.surfaceContainerLow.copy(alpha = 0.72f),
+                RoundedCornerShape(18.dp),
+            )
+            .border(
+                1.dp,
+                colors.outlineVariant.copy(alpha = 0.65f),
+                RoundedCornerShape(18.dp),
+            ),
+    ) {
+        val toggle: (() -> Unit)? = if (families == null) {
+            null
+        } else {
+            ({
+                RodinHaptics.segment()
+                expanded = !expanded
+            })
+        }
+        PressScale(enableHaptics = false, onTap = toggle) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Gradient,
+                    contentDescription = null,
+                    tint = colors.primary,
+                    modifier = Modifier.size(19.dp),
+                )
+                Spacer(Modifier.width(9.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = "Palette Lab",
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.W700,
+                        ),
+                    )
+                    Text(
+                        text = "Explore all 65 generated tones",
+                        style = MaterialTheme.typography.labelMedium.copy(fontSize = 11.sp),
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Rounded.KeyboardArrowDown,
+                    contentDescription = null,
+                    modifier = Modifier.rotate(rotation),
+                )
+            }
+        }
+        Column(
+            Modifier.animateContentSize(
+                animationSpec = tween(
+                    RodinInteractionSettings.motionDuration(220),
+                    easing = CubicBezierEasing(0.215f, 0.61f, 0.355f, 1f),
+                ),
+            ),
+        ) {
+            if (expanded && families != null) {
+                Column(
+                    Modifier.padding(start = 14.dp, end = 14.dp, bottom = 14.dp),
+                ) {
+                    val names = listOf(
+                        "Primary",
+                        "Secondary",
+                        "Tertiary",
+                        "Neutral",
+                        "Neutral variant",
+                    )
+                    names.forEachIndexed { family, name ->
+                        if (family > 0) Spacer(Modifier.height(10.dp))
+                        Text(
+                            text = name,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.W600,
+                                color = colors.onSurfaceVariant,
+                            ),
+                        )
+                        Spacer(Modifier.height(5.dp))
+                        Row {
+                            for (tone in 0 until 13) {
+                                Box(Modifier.weight(1f)) {
+                                    Box(
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .height(24.dp)
+                                            .background(
+                                                Color(
+                                                    0xFF000000.toInt() or
+                                                        (families[family][tone] and 0xFFFFFF),
+                                                ),
+                                                RoundedCornerShape(
+                                                    topStart = if (tone == 0) 8.dp else 0.dp,
+                                                    topEnd = if (tone == 12) 8.dp else 0.dp,
+                                                    bottomEnd = if (tone == 12) 8.dp else 0.dp,
+                                                    bottomStart = if (tone == 0) 8.dp else 0.dp,
+                                                ),
+                                            ),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(9.dp))
+                    Text(
+                        text = "Material preview generated locally. Applied colors " +
+                            "are verified separately against Android.",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontSize = 10.5.sp,
+                            lineHeight = 14.7.sp,
+                            color = colors.onSurfaceVariant,
+                        ),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SystemPalettePreview(scheme: ColorScheme, animate: Boolean) {
+    val duration = if (animate) RodinInteractionSettings.motionDuration(180) else 0
+    val container by animateColorAsState(
+        targetValue = scheme.surfaceContainerLow,
+        animationSpec = tween(duration),
+        label = "previewContainer",
+    )
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .background(container, RoundedCornerShape(26.dp))
+            .border(1.dp, scheme.outlineVariant, RoundedCornerShape(26.dp))
+            .padding(18.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "A little more you.",
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.headlineSmall.copy(
+                    fontSize = 22.sp,
+                    lineHeight = 25.3.sp,
+                    fontWeight = FontWeight.W700,
+                    letterSpacing = (-0.5).sp,
+                    color = scheme.onSurface,
+                ),
+            )
+            Spacer(Modifier.width(12.dp))
+            Box(
+                Modifier
+                    .background(scheme.tertiaryContainer, RoundedCornerShape(18.dp))
+                    .padding(12.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.AutoAwesome,
+                    contentDescription = null,
+                    tint = scheme.onTertiaryContainer,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+        }
+        Spacer(Modifier.height(20.dp))
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .background(scheme.primaryContainer, RoundedCornerShape(18.dp))
+                .padding(13.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.NotificationsNone,
+                contentDescription = null,
+                tint = scheme.onPrimaryContainer,
+                modifier = Modifier.size(24.dp),
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = "Your everyday, in color",
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.labelLarge.copy(
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.W600,
+                    color = scheme.onPrimaryContainer,
+                ),
+            )
+            Spacer(Modifier.width(8.dp))
+            Box(
+                Modifier
+                    .size(width = 35.dp, height = 21.dp)
+                    .background(scheme.primary, RoundedCornerShape(20.dp))
+                    .padding(3.dp),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                Box(
+                    Modifier
+                        .size(15.dp)
+                        .background(scheme.onPrimary, CircleShape),
+                )
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        Row {
+            listOf("Q", "W", "E", "R", "T", "Y").forEach { letter ->
+                Box(Modifier.weight(1f)) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(end = if (letter == "Y") 0.dp else 5.dp)
+                            .background(scheme.surfaceContainerHighest, RoundedCornerShape(9.dp))
+                            .padding(vertical = 10.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = letter,
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.W600,
+                                color = scheme.onSurface,
+                            ),
+                        )
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            Box(
+                Modifier
+                    .size(width = 100.dp, height = 22.dp)
+                    .background(scheme.secondaryContainer, RoundedCornerShape(8.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.SpaceBar,
+                    contentDescription = null,
+                    tint = scheme.onSecondaryContainer,
+                    modifier = Modifier.size(19.dp),
+                )
+            }
+        }
+    }
+}
