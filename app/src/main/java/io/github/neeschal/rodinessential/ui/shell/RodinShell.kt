@@ -89,7 +89,7 @@ fun RodinShell() {
     }
 
     LaunchedEffect(appearance.themePreference) {
-        RodinThemeController.setPreference(appearance.themePreference)
+        RodinThemeController.applyPreference(appearance.themePreference)
     }
 
     RodinEssentialTheme(config = appearance) {
@@ -382,7 +382,7 @@ private fun RodinShellScaffold(
                         onOpen = { target -> openDetail(target) },
                         onSelectRoot = { target -> selectRoot(target) },
                         onThemePreferenceChanged = { preference ->
-                            RodinThemeController.setPreference(preference)
+                            RodinThemeController.applyPreference(preference)
                             onCommitAppearance(
                                 appearance.copy(themePreference = preference),
                             )
@@ -415,7 +415,7 @@ private fun RodinShellScaffold(
                         onHorizontalControlActive = { active -> rootSwipeLocked = active },
                         onResetAppearance = {
                             val defaults = RodinAppearanceConfig()
-                            RodinThemeController.setPreference(defaults.themePreference)
+                            RodinThemeController.applyPreference(defaults.themePreference)
                             onCommitAppearance(defaults)
                         },
                         onAccentChanged = { index ->

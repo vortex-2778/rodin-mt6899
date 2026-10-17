@@ -25,7 +25,7 @@ object RodinThemeController {
         RodinThemePreference.entries.firstOrNull { it.name == name }
             ?: RodinThemePreference.system
 
-    fun setPreference(value: RodinThemePreference) {
+    fun applyPreference(value: RodinThemePreference) {
         preference = value
     }
 
@@ -35,7 +35,7 @@ object RodinThemeController {
             val file = RodinAppearanceStore.appearanceFile(context)
             if (!file.exists()) return
             val raw = JSONObject(file.readText())
-            setPreference(
+            applyPreference(
                 preferenceFromName(if (raw.has("themeMode")) raw.optString("themeMode") else null),
             )
         } catch (_: Exception) {
