@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -45,7 +46,7 @@ import androidx.compose.material.icons.rounded.SportsEsports
 import androidx.compose.material.icons.rounded.TouchApp
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledButton
+import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -60,6 +61,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -553,7 +555,7 @@ fun PerAppControlsScreen(onBack: () -> Unit) {
                             Text("Cancel")
                         }
                         Spacer(Modifier.width(10.dp))
-                        FilledButton(
+                        Button(
                             onClick = {
                                 RodinHaptics.tap()
                                 finishDialog(true)
@@ -1031,7 +1033,7 @@ private fun AppEditorPage(
                         ),
                     )
                     Spacer(Modifier.height(10.dp))
-                    FilledButton(
+                    Button(
                         onClick = {
                             RodinHaptics.tap()
                             scope.launch { onEnableOverrides() }
