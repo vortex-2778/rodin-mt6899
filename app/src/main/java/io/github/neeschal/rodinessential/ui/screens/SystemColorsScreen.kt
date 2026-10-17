@@ -1243,6 +1243,136 @@ fun SystemColorsPanel(
             style = description,
         )
         Spacer(Modifier.height(12.dp))
-        /* RODIN_SYSTEM_COLORS_UI */
+        if (hexDialogVisible) {
+            var hexText by remember { mutableStateOf(paletteHex(seed).substring(1)) }
+            var hexError by remember { mutableStateOf<String?>(null) }
+            RodinDialog(onDismissRequest = { hexDialogVisible = false }) {
+                SurfaceCard(
+                    modifier = Modifier.widthIn(max = 360.dp),
+                    padding = PaddingValues(22.dp),
+                    accent = colors.primary,
+                ) {
+                    Column(Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "Enter seed color",
+                            style = MaterialTheme.typography.headlineSmall.copy(
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.W700,
+                                letterSpacing = (-0.3).sp,
+                            ),
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        TextField(
+                            value = hexText,
+                            onValueChange = { text ->
+                                hexText = text.take(7)
+                                hexError = null
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            isError = hexError != null,
+                            label = { Text("HEX color") },
+                            placeholder = { Text("008577") },
+                            prefix = { Text("#") },
+                            supportingText = hexError?.let { message -> { Text(message) } },
+                        )
+                        Spacer(Modifier.height(18.dp))
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            TextButton(
+                                onClick = {
+                                    RodinHaptics.tap()
+                                    hexDialogVisible = false
+                                },
+                            ) {
+                                Text("Cancel")
+                            }
+                            Spacer(Modifier.width(10.dp))
+                            Button(
+                                onClick = {
+                                    RodinHaptics.tap()
+                                    val raw = hexText.trim().removePrefix("#")
+                                    val parsed = if (raw.length == 6) {
+                                        raw.toIntOrNull(16)
+                                    } else {
+                                        null
+                                    }
+                                    if (parsed == null) {
+                                        hexError = "Enter exactly six HEX digits."
+                                    } else {
+                                        hexDialogVisible = false
+                                        chooseSeed(parsed)
+                                    }
+                                },
+                            ) {
+                                Text("Use color")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (saveDialogVisible) {
+            var saveName by remember { mutableStateOf("") }
+            RodinDialog(onDismissRequest = { saveDialogVisible = false }) {
+                SurfaceCard(
+                    modifier = Modifier.widthIn(max = 360.dp),
+                    padding = PaddingValues(22.dp),
+                    accent = colors.primary,
+                ) {
+                    Column(Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "Save palette",
+                            style = MaterialTheme.typography.headlineSmall.copy(
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.W700,
+                                letterSpacing = (-0.3).sp,
+                            ),
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        TextField(
+                            value = saveName,
+                            onValueChange = { text -> saveName = text.take(32) },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            label = { Text("Palette name") },
+                            placeholder = { Text("My favorite") },
+                        )
+                        Spacer(Modifier.height(18.dp))
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            TextButton(
+                                onClick = {
+                                    RodinHaptics.tap()
+                                    saveDialogVisible = false
+                                },
+                            ) {
+                                Text("Cancel")
+                            }
+                            Spacer(Modifier.width(10.dp))
+                            Button(
+                                onClick = {
+                                    RodinHaptics.tap()
+                                    val trimmed = saveName.trim()
+                                    if (trimmed.isNotEmpty()) {
+                                        saveDialogVisible = false
+                                        savePalette(trimmed)
+                                    }
+                                },
+                            ) {
+                                Text("Save")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
     }
 }
