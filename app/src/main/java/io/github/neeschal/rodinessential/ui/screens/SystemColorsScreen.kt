@@ -243,3 +243,349 @@ fun SystemColorsScreen(onBack: () -> Unit) {
         )
     }
 }
+
+/**
+ * Choices apply on tap; consecutive slider gestures form one adjustment.
+ * Native readback stays separate from the selected preview. Rapid choices
+ * coalesce to the latest selection while one transaction is in progress.
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+fun SystemColorsPanel(
+    palette: RodinSystemColorsState,
+    connection: RodinConnectionState,
+    onApply: (Boolean, Int, Int) -> Boolean,
+    onRefresh: () -> Boolean,
+    onRefreshContrast: (() -> Boolean)? = null,
+    onSetContrast: ((Int) -> Boolean)? = null,
+    onSelectionFeedback: () -> Unit = { RodinHaptics.segment() },
+    isNativeBusy: (() -> Boolean)? = null,
+    selection: RodinSystemColorsSelection? = null,
+    enableLibrary: Boolean = true,
+) {
+    val backendOnline = connection == RodinConnectionState.ONLINE
+    val latestPalette by rememberUpdatedState(palette)
+    val latestOnline by rememberUpdatedState(backendOnline)
+    val latestSelection by rememberUpdatedState(selection)
+    val latestIsNativeBusy by rememberUpdatedState(isNativeBusy)
+    val scope = rememberCoroutineScope()
+    val library = RodinBackend.systemColorsLibrary
+
+    var wallpaper by remember { mutableStateOf(true) }
+    var seed by remember { mutableIntStateOf(0x008577) }
+    var style by remember { mutableIntStateOf(0) }
+    var fineTuneBase by remember { mutableIntStateOf(0x008577) }
+    var hsl by remember { mutableStateOf(RodinHsl.fromRgb(0x008577)) }
+    var edited by remember { mutableStateOf(false) }
+    var previewDark by remember { mutableStateOf<Boolean?>(null) }
+    var pendingRevision by remember { mutableStateOf<Int?>(null) }
+    var applyQueued by remember { mutableStateOf(false) }
+    var dispatchScheduled by remember { mutableStateOf(false) }
+    var sliding by remember { mutableStateOf(false) }
+    var needsQuiet by remember { mutableStateOf(false) }
+    var quietJob by remember { mutableStateOf<Job?>(null) }
+    val activePointers = remember { mutableSetOf<PointerId>() }
+    var notice by remember { mutableStateOf<String?>(null) }
+    var hapticStep by remember { mutableIntStateOf(-1) }
+    val hapticClock = remember { SystemClock.elapsedRealtime() }
+    var lastHapticMs by remember { mutableIntStateOf(-100) }
+    var libraryLoaded by remember { mutableStateOf(false) }
+    var libraryTick by remember { mutableIntStateOf(0) }
+    var hexDialogVisible by remember { mutableStateOf(false) }
+    var saveDialogVisible by remember { mutableStateOf(false) }
+    var previousRevision by remember { mutableIntStateOf(-1) }
+    var previousOpState by remember { mutableIntStateOf(-1) }
+    var previousSelection by remember {
+        mutableStateOf<RodinSystemColorsSelection?>(null)
+    }
+
+    fun isBusy(): Boolean = latestPalette.busy || pendingRevision != null
+
+    fun matchesCurrent(): Boolean {
+        val current = latestPalette
+        if (!current.hasReadback) return false
+        return if (wallpaper) {
+            current.mode == 0 && current.style == 0
+        } else {
+            current.mode == 1 && current.seed == seed && current.style == style
+        }
+    }
+
+    fun syncDraft() {
+        val chosen = RodinSystemColorsSelection.fromNative(latestPalette) ?: latestSelection
+        if (chosen == null) return
+        // Preserve the unrounded HSL draft and reset point when Android
+        // confirms our own edit; converting through RGB every frame would
+        // lose hue at gray, black and white.
+        if (chosen.seed != seed || chosen.wallpaper != wallpaper) {
+            hsl = RodinHsl.fromRgb(chosen.seed)
+            fineTuneBase = chosen.seed
+        }
+        wallpaper = chosen.wallpaper
+        seed = chosen.seed
+        style = chosen.style
+        edited = false
+    }
+
+    fun edit(update: () -> Unit) {
+        update()
+        edited = true
+        notice = null
+    }
+
+    fun select(update: () -> Unit) {
+        quietJob?.cancel()
+        quietJob = null
+        needsQuiet = false
+        // Feedback belongs to the gesture, never to a delayed daemon reply.
+        onSelectionFeedback()
+        edit(update)
+        scheduleApply()
+    }
+
+    fun scheduleApply(afterDrag: Boolean = false) {
+        val current = latestPalette
+        if (!latestOnline ||
+            current.failed ||
+            (current.hasReadback && !current.supported)
+        ) {
+            applyQueued = false
+            return
+        }
+        applyQueued = true
+        if (afterDrag) needsQuiet = true
+        dispatchWhenReady()
+    }
+
+    fun dispatchWhenReady() {
+        if (!applyQueued || sliding || activePointers.isNotEmpty()) return
+        if (needsQuiet) {
+            // An Android overlay update can cover the screen with a system
+            // snapshot; don't start one between two fine-tune gestures.
+            if (quietJob == null) {
+                quietJob = scope.launch {
+                    delay(280)
+                    quietJob = null
+                    needsQuiet = false
+                    dispatchWhenReady()
+                }
+            }
+            return
+        }
+        if (dispatchScheduled) return
+        dispatchScheduled = true
+        // Submission only queues native work; it never waits for Android.
+        scope.launch {
+            dispatchScheduled = false
+            if (applyQueued && !sliding && !needsQuiet && activePointers.isEmpty()) {
+                applySelection()
+            }
+        }
+    }
+
+    fun applySelection() {
+        val current = latestPalette
+        if (!latestOnline ||
+            current.failed ||
+            (current.hasReadback && !current.supported)
+        ) {
+            applyQueued = false
+            return
+        }
+        // Preserve taps during discovery and native refreshes that the next
+        // UI snapshot has not reported yet; dispatch once the read completes.
+        if (!current.hasReadback ||
+            isBusy() ||
+            (latestIsNativeBusy?.invoke() ?: false)
+        ) {
+            applyQueued = true
+            return
+        }
+        applyQueued = false
+        if (matchesCurrent()) {
+            edited = false
+            return
+        }
+        val revision = current.revision
+        if (onApply(wallpaper, seed, style)) {
+            pendingRevision = revision
+            notice = null
+        } else if (latestIsNativeBusy?.invoke() ?: false) {
+            // The native refresh can start between preflight and submit.
+            applyQueued = true
+        } else {
+            notice = "Could not apply this selection. Refresh and select it again."
+        }
+    }
+
+    fun changeHsl(color: RodinHsl, hapticStepValue: Int) {
+        if (hapticStep != hapticStepValue) {
+            hapticStep = hapticStepValue
+            val elapsed = SystemClock.elapsedRealtime() - hapticClock
+            if (elapsed - lastHapticMs >= 45) {
+                lastHapticMs = elapsed
+                RodinHaptics.frequentSegment()
+            }
+        }
+        edit {
+            hsl = color
+            seed = color.toColorInt() and 0xFFFFFF
+        }
+    }
+
+    fun chooseSeed(rgb: Int) {
+        select {
+            seed = rgb
+            fineTuneBase = rgb
+            hsl = RodinHsl.fromRgb(rgb)
+        }
+    }
+
+    fun choosePalette(seedValue: Int, styleValue: Int) {
+        select {
+            wallpaper = false
+            seed = seedValue
+            style = styleValue
+            fineTuneBase = seedValue
+            hsl = RodinHsl.fromRgb(seedValue)
+        }
+    }
+
+    fun recordConfirmed(seedValue: Int, styleValue: Int) {
+        scope.launch {
+            withContext(Dispatchers.IO) { library.record(seedValue, styleValue) }
+            libraryTick += 1
+            libraryLoaded = true
+        }
+    }
+
+    fun savePalette(name: String) {
+        scope.launch {
+            withContext(Dispatchers.IO) { library.save(name, seed, style) }
+            libraryTick += 1
+            libraryLoaded = true
+        }
+    }
+
+    fun removePalette(item: io.github.neeschal.rodinessential.backend.RodinSavedPalette) {
+        scope.launch {
+            withContext(Dispatchers.IO) { library.remove(item) }
+            libraryTick += 1
+        }
+    }
+
+    fun beginSlider() {
+        quietJob?.cancel()
+        quietJob = null
+        needsQuiet = true
+        hapticStep = -1
+        sliding = true
+    }
+
+    fun endSlider() {
+        sliding = false
+        scheduleApply(afterDrag = true)
+    }
+
+    LaunchedEffect(Unit) {
+        syncDraft()
+        if (enableLibrary) {
+            withContext(Dispatchers.IO) { library.load() }
+            libraryLoaded = true
+        }
+    }
+
+    LaunchedEffect(
+        palette.busy,
+        palette.revision,
+        palette.operationState,
+        selection,
+        backendOnline,
+    ) {
+        val current = palette
+        if (!backendOnline) applyQueued = false
+        if (!edited && !current.hasReadback && selection != previousSelection) {
+            syncDraft()
+        }
+        val unchanged = current.revision == previousRevision &&
+            current.operationState == previousOpState
+        if (!(current.busy || unchanged)) {
+            if (pendingRevision != null && current.revision != pendingRevision) {
+                pendingRevision = null
+                if (current.ready) {
+                    if (!applyQueued && !sliding) syncDraft()
+                    notice = when (current.outcome) {
+                        1 -> if (current.mode == 0) {
+                            "Wallpaper colors restored. Android’s palette changed."
+                        } else {
+                            "System colors updated. Verified against Android’s palette."
+                        }
+                        2 -> "Wallpaper following restored. Android resolved the same colors."
+                        else -> "This palette is already selected in Android."
+                    }
+                    if (enableLibrary && current.mode == 1 && current.seed >= 0) {
+                        recordConfirmed(current.seed, current.style)
+                    }
+                } else {
+                    applyQueued = false
+                    notice = null
+                }
+            } else if (!edited) {
+                syncDraft()
+            }
+            if (applyQueued && !isBusy()) dispatchWhenReady()
+        }
+        previousRevision = current.revision
+        previousOpState = current.operationState
+        previousSelection = selection
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            quietJob?.cancel()
+            // A completed edit must not disappear if Back is tapped during
+            // the short slider settling window. Only flush a write that is
+            // already safe to send; never retry a failure here.
+            val current = latestPalette
+            if (applyQueued &&
+                !sliding &&
+                !(current.busy || pendingRevision != null) &&
+                latestOnline &&
+                current.ready &&
+                current.supported &&
+                !matchesCurrent() &&
+                !(latestIsNativeBusy?.invoke() ?: false)
+            ) {
+                onApply(wallpaper, seed, style)
+            }
+        }
+    }
+
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        if (event.type == PointerEventType.Press) {
+                            event.changes.forEach { change -> activePointers.add(change.id) }
+                            quietJob?.cancel()
+                            quietJob = null
+                        } else {
+                            var released = false
+                            event.changes.forEach { change ->
+                                if (!change.pressed) {
+                                    activePointers.remove(change.id)
+                                    released = true
+                                }
+                            }
+                            if (released) dispatchWhenReady()
+                        }
+                    }
+                }
+            },
+    ) {
+        /* RODIN_SYSTEM_COLORS_UI */
+    }
+}
