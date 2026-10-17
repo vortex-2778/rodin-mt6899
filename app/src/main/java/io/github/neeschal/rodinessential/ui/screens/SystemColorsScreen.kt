@@ -11,6 +11,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -586,6 +587,425 @@ fun SystemColorsPanel(
                 }
             },
     ) {
+        val colors = MaterialTheme.colorScheme
+        val dark = previewDark ?: isSystemInDarkTheme()
+        val previewSeed = if (wallpaper && palette.hasReadback) {
+            if (palette.seed >= 0) palette.seed else palette.primary
+        } else {
+            seed
+        }
+        val styleCount = if (palette.sdk > 0 && palette.sdk < 33) {
+            1
+        } else if (palette.sdk == 33) {
+            6
+        } else {
+            7
+        }
+        val description = MaterialTheme.typography.bodyMedium.copy(
+            fontSize = 12.5.sp,
+            lineHeight = 18.75.sp,
+            color = colors.onSurfaceVariant,
+        )
+        val selectionKnown = edited ||
+            selection != null ||
+            RodinSystemColorsSelection.fromNative(palette) != null
+
+        Text(
+            text = "Make Android yours.",
+            style = MaterialTheme.typography.headlineMedium.copy(
+                fontSize = 26.sp,
+                lineHeight = 29.1.sp,
+                letterSpacing = (-0.7).sp,
+                fontWeight = FontWeight.W800,
+                color = colors.onSurface,
+            ),
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = "Use Android’s native Monet palette across compatible system " +
+                "surfaces, apps and keyboards. Separate from Rodin’s own theme.",
+            style = description,
+        )
+        Spacer(Modifier.height(18.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.weight(1f)) {
+                SectionLabel("Palette preview")
+            }
+            PressScale(onTap = { previewDark = false }) {
+                Box(
+                    Modifier
+                        .size(38.dp)
+                        .background(
+                            if (!dark) {
+                                colors.primary.copy(alpha = 0.12f)
+                            } else {
+                                Color.Transparent
+                            },
+                            CircleShape,
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.LightMode,
+                        contentDescription = null,
+                        tint = if (!dark) colors.primary else colors.onSurfaceVariant,
+                        modifier = Modifier.size(19.dp),
+                    )
+                }
+            }
+            PressScale(onTap = { previewDark = true }) {
+                Box(
+                    Modifier
+                        .size(38.dp)
+                        .background(
+                            if (dark) {
+                                colors.primary.copy(alpha = 0.12f)
+                            } else {
+                                Color.Transparent
+                            },
+                            CircleShape,
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.DarkMode,
+                        contentDescription = null,
+                        tint = if (dark) colors.primary else colors.onSurfaceVariant,
+                        modifier = Modifier.size(19.dp),
+                    )
+                }
+            }
+        }
+        SystemPalettePreviewPane(
+            seed = previewSeed,
+            style = if (wallpaper) 0 else style,
+            dark = dark,
+            scrubbing = sliding,
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = when {
+                !selectionKnown ->
+                    "Reading your saved Android palette. No source is selected yet."
+                wallpaper && palette.mode != 0 ->
+                    "Wallpaper colors are generated after applying. This is an example palette."
+                else -> "Illustrative preview. Your ROM generates the final colors."
+            },
+            style = description.copy(fontSize = 11.sp),
+        )
+        Spacer(Modifier.height(20.dp))
+        SectionLabel("Color source")
+        Spacer(Modifier.height(10.dp))
+        BoxWithConstraints {
+            val fontScale = LocalDensity.current.fontScale
+            val stack = maxWidth < 340.dp || 13f * fontScale > 18f
+            val wallpaperTile: @Composable () -> Unit = {
+                PaletteSourceTile(
+                    title = "Wallpaper",
+                    subtitle = "Let Android choose",
+                    icon = Icons.Rounded.Wallpaper,
+                    selected = selectionKnown && wallpaper,
+                    onTap = { select { wallpaper = true } },
+                )
+            }
+            val customTile: @Composable () -> Unit = {
+                PaletteSourceTile(
+                    title = "Custom color",
+                    subtitle = "Choose your own seed",
+                    icon = Icons.Rounded.ColorLens,
+                    selected = selectionKnown && !wallpaper,
+                    onTap = { select { wallpaper = false } },
+                )
+            }
+            if (stack) {
+                Column {
+                    wallpaperTile()
+                    Spacer(Modifier.height(10.dp))
+                    customTile()
+                }
+            } else {
+                Row(verticalAlignment = Alignment.Top) {
+                    Box(Modifier.weight(1f)) { wallpaperTile() }
+                    Spacer(Modifier.width(10.dp))
+                    Box(Modifier.weight(1f)) { customTile() }
+                }
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        if (!wallpaper) {
+            SurfaceCard {
+                Column(Modifier.fillMaxWidth()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Seed color",
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.W700,
+                            ),
+                        )
+                        Text(
+                            text = paletteHex(seed),
+                            style = description.copy(fontSize = 11.sp),
+                        )
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = "Tap a seed or style to apply. Fine-tune freely; " +
+                            "Android updates after a brief pause between adjustments.",
+                        style = description,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    BoxWithConstraints {
+                        val fontScale = LocalDensity.current.fontScale
+                        val columns = if (maxWidth < 240.dp || 11f * fontScale > 15f) 3 else 4
+                        val tileWidth = (maxWidth - 8.dp * (columns - 1)) / columns
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            paletteSeeds.forEach { (name, rgb) ->
+                                PaletteSeedTile(
+                                    name = name,
+                                    rgb = rgb,
+                                    width = tileWidth,
+                                    selected = seed == rgb,
+                                    onTap = { chooseSeed(rgb) },
+                                )
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        OutlinedButton(
+                            onClick = { hexDialogVisible = true },
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Tag,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("Enter HEX")
+                        }
+                        OutlinedButton(
+                            onClick = { saveDialogVisible = true },
+                            enabled = libraryLoaded,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.BookmarkAdd,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("Save palette")
+                        }
+                    }
+                    val recents = remember(libraryTick) { library.recents.toList() }
+                    val savedPalettes = remember(libraryTick) { library.saved.toList() }
+                    if (libraryLoaded && recents.isNotEmpty()) {
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            text = "Recent colors",
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.W700,
+                            ),
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            recents.forEach { (recentSeed, recentStyle) ->
+                                ActionChip(
+                                    onClick = { choosePalette(recentSeed, recentStyle) },
+                                    label = { Text(paletteHex(recentSeed)) },
+                                    avatar = {
+                                        Box(
+                                            Modifier
+                                                .size(24.dp)
+                                                .background(previewColor(recentSeed), CircleShape),
+                                        )
+                                    },
+                                )
+                            }
+                        }
+                    }
+                    if (libraryLoaded && savedPalettes.isNotEmpty()) {
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            text = "Saved palettes",
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.W700,
+                            ),
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            savedPalettes.forEach { item ->
+                                InputChip(
+                                    selected = false,
+                                    onClick = { choosePalette(item.seed, item.style) },
+                                    label = { Text(item.name) },
+                                    avatar = {
+                                        Box(
+                                            Modifier
+                                                .size(24.dp)
+                                                .background(previewColor(item.seed), CircleShape),
+                                        )
+                                    },
+                                    trailingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Close,
+                                            contentDescription = null,
+                                            modifier = Modifier
+                                                .size(16.dp)
+                                                .clickable { removePalette(item) },
+                                        )
+                                    },
+                                )
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.5f))
+                    Spacer(Modifier.height(6.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Fine-tune color",
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.W700,
+                            ),
+                        )
+                        TextButton(
+                            onClick = {
+                                select {
+                                    seed = fineTuneBase
+                                    hsl = RodinHsl.fromRgb(fineTuneBase)
+                                }
+                            },
+                            enabled = hsl != RodinHsl.fromRgb(fineTuneBase),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.RestartAlt,
+                                contentDescription = null,
+                                modifier = Modifier.size(17.dp),
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("Reset")
+                        }
+                    }
+                    Text(
+                        text = "Reset restores your starting seed. Your palette " +
+                            "style stays the same.",
+                        style = description.copy(fontSize = 11.sp),
+                    )
+                    Spacer(Modifier.height(14.dp))
+                    PaletteSeedSlider(
+                        label = "Hue",
+                        value = hsl.hue,
+                        min = 0f,
+                        max = 360f,
+                        trackColors = listOf(
+                            Color(0xFFFF0000),
+                            Color(0xFFFFFF00),
+                            Color(0xFF00FF00),
+                            Color(0xFF00FFFF),
+                            Color(0xFF0000FF),
+                            Color(0xFFFF00FF),
+                            Color(0xFFFF0000),
+                        ),
+                        thumbColor = hsl.toColor(),
+                        onChanged = { value -> changeHsl(hsl.withHue(value), (value / 20f).toInt()) },
+                        onStart = { beginSlider() },
+                        onEnd = { endSlider() },
+                    )
+                    PaletteSeedSlider(
+                        label = "Intensity",
+                        value = hsl.saturation,
+                        min = 0f,
+                        max = 1f,
+                        trackColors = listOf(
+                            hsl.withSaturation(0f).toColor(),
+                            hsl.withSaturation(1f).toColor(),
+                        ),
+                        thumbColor = hsl.toColor(),
+                        onChanged = { value ->
+                            changeHsl(hsl.withSaturation(value), 100 + (value * 18f).roundToInt())
+                        },
+                        onStart = { beginSlider() },
+                        onEnd = { endSlider() },
+                    )
+                    PaletteSeedSlider(
+                        label = "Lightness",
+                        value = hsl.lightness,
+                        min = 0f,
+                        max = 1f,
+                        trackColors = listOf(
+                            Color.Black,
+                            hsl.withLightness(0.5f).toColor(),
+                            Color.White,
+                        ),
+                        thumbColor = hsl.toColor(),
+                        onChanged = { value ->
+                            changeHsl(hsl.withLightness(value), 200 + (value * 18f).roundToInt())
+                        },
+                        onStart = { beginSlider() },
+                        onEnd = { endSlider() },
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.5f))
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        text = "Palette style",
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.W700,
+                        ),
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        for (index in 0 until styleCount) {
+                            ChoiceChip(
+                                selected = style == index,
+                                onClick = { select { style = index } },
+                                label = { Text(paletteStyleNames[index], fontSize = 12.sp) },
+                                shape = RoundedCornerShape(14.dp),
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = "Android builds tonal colors from this seed; accents " +
+                            "may differ from the exact color you pick. Gray or near-black " +
+                            "seeds may use Android’s fallback color. For grayscale, " +
+                            "choose Monochrome when available.",
+                        style = description,
+                    )
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+        } else if (selectionKnown) {
+            Text(
+                text = "Use colors from your wallpaper and follow future wallpaper " +
+                    "changes. Selecting this removes only custom palette settings.",
+                modifier = Modifier.padding(horizontal = 2.dp, vertical = 4.dp),
+                style = description,
+            )
+            Spacer(Modifier.height(10.dp))
+        }
         /* RODIN_SYSTEM_COLORS_UI */
     }
 }
