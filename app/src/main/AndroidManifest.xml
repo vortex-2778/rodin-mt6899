@@ -21,7 +21,7 @@
 
         <activity
             android:name=".MainActivity"
-            android:configChanges="orientation|keyboardHidden|screenSize|smallestScreenSize|screenLayout|uiMode|density|colorMode|assetsPaths"
+            android:configChanges="orientation|keyboardHidden|screenSize|smallestScreenSize|screenLayout|uiMode|density|colorMode"
             android:exported="true"
             android:launchMode="singleTask"
             android:screenOrientation="unspecified"
