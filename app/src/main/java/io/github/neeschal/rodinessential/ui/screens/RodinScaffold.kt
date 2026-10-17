@@ -75,6 +75,7 @@ sealed class RodinPageHeader {
     class Detail(
         override val title: String,
         val onBack: () -> Unit,
+        val trailing: (@Composable () -> Unit)? = null,
     ) : RodinPageHeader()
 }
 
@@ -209,6 +210,7 @@ fun RodinScrollPage(
                 startX = startX,
                 topPadding = topPadding,
                 onBack = (header as? RodinPageHeader.Detail)?.onBack,
+                trailing = (header as? RodinPageHeader.Detail)?.trailing,
             )
         }
     }
@@ -243,6 +245,7 @@ private fun RodinHeaderGlassMorph(
     startX: Float,
     topPadding: Dp,
     onBack: (() -> Unit)?,
+    trailing: (@Composable () -> Unit)?,
 ) {
     val colors = MaterialTheme.colorScheme
     val dark = colors.surface.luminance() < 0.5f
@@ -345,13 +348,31 @@ private fun RodinHeaderGlassMorph(
             }
         }
 
+        if (trailing != null) {
+            Box(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(
+                        end = lerp(12f, 10f, morph).dp,
+                        top = lerp(
+                            safeTop.value + topPadding.value - 2f,
+                            safeTop.value + 3f,
+                            morph,
+                        ).dp,
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                trailing()
+            }
+        }
+
         Text(
             text = title,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(
                 start = titleX.dp,
-                end = (if (onBack == null) 14f else 12f).dp,
+                end = (if (trailing != null) 48f else if (onBack == null) 14f else 12f).dp,
                 top = titleY.dp,
             ),
             style = MaterialTheme.typography.titleLarge.copy(
