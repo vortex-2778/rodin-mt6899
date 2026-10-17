@@ -59,7 +59,7 @@ val RodinLightPalette = RodinPalette(
 )
 
 private fun schemeTone(palette: TonalPalette, light: Int, darkTone: Int, dark: Boolean): Color =
-    Color(palette.get((if (dark) darkTone else light).toDouble()))
+    Color(palette.tone(if (dark) darkTone else light))
 
 /**
  * Recreates Flutter's Material 3 tonal-spot scheme for this seed and then

@@ -26,8 +26,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.SpanStyle
@@ -153,7 +153,6 @@ fun HubHeadline(modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
     val isDark = colors.surface.luminance() < 0.5f
     val lifecycleOwner = LocalLifecycleOwner.current
-    val windowInfo = LocalWindowInfo.current
 
     var foreground by remember { mutableStateOf(true) }
     DisposableEffect(lifecycleOwner) {
@@ -207,7 +206,7 @@ fun HubHeadline(modifier: Modifier = Modifier) {
         color = colors.onSurfaceVariant,
     )
 
-    val windowHeight = windowInfo.containerSize.height.toFloat()
+    val windowHeight = LocalConfiguration.current.screenHeightDp.toFloat()
 
     BoxWithConstraints(modifier.fillMaxWidth()) {
         Box(

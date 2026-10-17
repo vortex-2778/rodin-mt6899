@@ -63,9 +63,11 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -73,9 +75,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import io.github.neeschal.rodinessential.backend.BypassTelemetry
 import io.github.neeschal.rodinessential.backend.RodinBackend
 import io.github.neeschal.rodinessential.backend.RodinBackendSnapshot
+import io.github.neeschal.rodinessential.backend.RodinBypassTelemetry
 import io.github.neeschal.rodinessential.ui.components.PressScale
 import io.github.neeschal.rodinessential.ui.components.RodinBypassThresholdSelector
 import io.github.neeschal.rodinessential.ui.components.RodinHaptics
@@ -507,7 +509,7 @@ private fun BypassChargingCard(snapshot: RodinBackendSnapshot) {
         }
     }
 
-    val directPowerConfirmed = BypassTelemetry.isBypassDirectPowerConfirmed(
+    val directPowerConfirmed = RodinBypassTelemetry.isBypassDirectPowerConfirmed(
         ready = snapshot.ready,
         enabled = RodinBackend.bypassChargingEnabled,
         kernelActive = RodinBackend.bypassHardwareActive,
@@ -775,8 +777,8 @@ private fun BypassPowerPath(color: Color, flow: Float, modifier: Modifier = Modi
                 cap = StrokeCap.Round,
                 join = StrokeJoin.Round,
             )
-            drawLine(color, Offset(4f, 7f), Offset(4f, 10f), style = stroke)
-            drawLine(color, Offset(8f, 7f), Offset(8f, 10f), style = stroke)
+            drawLine(color, Offset(4f, 7f), Offset(4f, 10f), strokeWidth = 1.8f, cap = StrokeCap.Round)
+            drawLine(color, Offset(8f, 7f), Offset(8f, 10f), strokeWidth = 1.8f, cap = StrokeCap.Round)
             drawRoundRect(
                 color = color,
                 topLeft = Offset(2f, 10f),
@@ -802,8 +804,8 @@ private fun BypassPowerPath(color: Color, flow: Float, modifier: Modifier = Modi
                 style = stroke,
             )
             for (x in listOf(24f, 27f)) {
-                drawLine(color, Offset(x, 5.5f), Offset(x, 8f), style = stroke)
-                drawLine(color, Offset(x, 18f), Offset(x, 20.5f), style = stroke)
+                drawLine(color, Offset(x, 5.5f), Offset(x, 8f), strokeWidth = 1.8f, cap = StrokeCap.Round)
+                drawLine(color, Offset(x, 18f), Offset(x, 20.5f), strokeWidth = 1.8f, cap = StrokeCap.Round)
             }
             drawRect(color, Offset(24f, 11f), Size(3f, 4f))
             val battery = Stroke(
@@ -818,8 +820,8 @@ private fun BypassPowerPath(color: Color, flow: Float, modifier: Modifier = Modi
                 cornerRadius = CornerRadius(1f, 1f),
                 style = battery,
             )
-            drawLine(batteryColor, Offset(18.5f, 26.5f), Offset(18.5f, 28.5f), style = battery)
-            drawLine(batteryColor, Offset(17f, 23.5f), Offset(20f, 23.5f), style = battery)
+            drawLine(batteryColor, Offset(18.5f, 26.5f), Offset(18.5f, 28.5f), strokeWidth = 1.4f, cap = StrokeCap.Round)
+            drawLine(batteryColor, Offset(17f, 23.5f), Offset(20f, 23.5f), strokeWidth = 1.4f, cap = StrokeCap.Round)
             if (flow > 0f) {
                 drawCircle(color, radius = 2f, center = Offset(16f + 3f * flow, 13f))
             }

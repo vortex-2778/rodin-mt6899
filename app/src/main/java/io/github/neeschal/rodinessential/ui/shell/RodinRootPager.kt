@@ -21,16 +21,18 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.IgnorePointer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import io.github.neeschal.rodinessential.ui.components.RodinIgnorePointer
 import io.github.neeschal.rodinessential.ui.motion.LocalRodinMotionViewportInFlight
 import io.github.neeschal.rodinessential.ui.motion.rodinAnimationsDisabled
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /**
  * A tab tap has one destination, not a sightseeing tour of the other hubs.
@@ -301,7 +303,7 @@ fun RodinRootPager(
                             },
                         ),
                 ) {
-                    IgnorePointer(ignoring = moving || index != active) {
+                    RodinIgnorePointer(ignoring = moving || index != active) {
                         CompositionLocalProvider(
                             LocalRodinMotionViewportInFlight provides moving,
                         ) {

@@ -20,6 +20,7 @@ data class RodinPaletteKey(val seed: Int, val style: Int, val dark: Boolean)
  * with com.google.android.material.
  */
 fun rodinGeneratePalette(seed: Int, style: Int, dark: Boolean): List<Int> {
+    val roles = MaterialDynamicColors()
     val source = Hct.fromInt(0xFF000000.toInt() or seed)
     val scheme: DynamicScheme = when (style) {
         0 -> SchemeTonalSpot(source, dark, 0.0)
@@ -32,18 +33,18 @@ fun rodinGeneratePalette(seed: Int, style: Int, dark: Boolean): List<Int> {
         else -> throw IllegalArgumentException("style")
     }
     val result = mutableListOf<Int>()
-    result += MaterialDynamicColors.surfaceContainerLow().getArgb(scheme)
-    result += MaterialDynamicColors.outlineVariant().getArgb(scheme)
-    result += MaterialDynamicColors.onSurface().getArgb(scheme)
-    result += MaterialDynamicColors.tertiaryContainer().getArgb(scheme)
-    result += MaterialDynamicColors.onTertiaryContainer().getArgb(scheme)
-    result += MaterialDynamicColors.primaryContainer().getArgb(scheme)
-    result += MaterialDynamicColors.onPrimaryContainer().getArgb(scheme)
-    result += MaterialDynamicColors.primary().getArgb(scheme)
-    result += MaterialDynamicColors.onPrimary().getArgb(scheme)
-    result += MaterialDynamicColors.surfaceContainerHighest().getArgb(scheme)
-    result += MaterialDynamicColors.secondaryContainer().getArgb(scheme)
-    result += MaterialDynamicColors.onSecondaryContainer().getArgb(scheme)
+    result += roles.surfaceContainerLow().getArgb(scheme)
+    result += roles.outlineVariant().getArgb(scheme)
+    result += roles.onSurface().getArgb(scheme)
+    result += roles.tertiaryContainer().getArgb(scheme)
+    result += roles.onTertiaryContainer().getArgb(scheme)
+    result += roles.primaryContainer().getArgb(scheme)
+    result += roles.onPrimaryContainer().getArgb(scheme)
+    result += roles.primary().getArgb(scheme)
+    result += roles.onPrimary().getArgb(scheme)
+    result += roles.surfaceContainerHighest().getArgb(scheme)
+    result += roles.secondaryContainer().getArgb(scheme)
+    result += roles.onSecondaryContainer().getArgb(scheme)
     for (family in listOf(
         scheme.primaryPalette,
         scheme.secondaryPalette,
@@ -51,10 +52,13 @@ fun rodinGeneratePalette(seed: Int, style: Int, dark: Boolean): List<Int> {
         scheme.neutralPalette,
         scheme.neutralVariantPalette,
     )) {
-        family.asList.forEach { tone -> result += tone }
+        for (tone in rodinPreviewTones) result += family.tone(tone)
     }
     return result
 }
+
+/** The Dart mcuc TonalPalette.commonTones list, mirrored exactly. */
+private val rodinPreviewTones = listOf(0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 95, 99, 100)
 
 /** Splits the 65 tonal values that follow the 12 scheme roles into families. */
 fun rodinPreviewTonalFamilies(colors: List<Int>): List<List<Int>> {

@@ -1241,7 +1241,7 @@ private fun MotionKnobTrack() {
     ) {
         Box(
             Modifier
-                .align(BiasAlignment(x = bias, y = 0f))
+                .align(BiasAlignment(horizontalBias = bias, verticalBias = 0f))
                 .size(28.dp)
                 .rodinShadow(
                     color = colors.primary.copy(alpha = 0.28f),

@@ -1,5 +1,6 @@
 package io.github.neeschal.rodinessential.ui.motion
 
+import android.provider.Settings
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.SpringSpec
@@ -24,12 +25,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.ui.LocalMotionDurationScale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -91,8 +92,20 @@ val LocalRodinMotionViewportInFlight = compositionLocalOf { false }
 val LocalRodinScrollVelocity = compositionLocalOf<MutableState<Float>?> { null }
 
 @Composable
-fun rodinAnimationsDisabled(): Boolean =
-    LocalMotionDurationScale.current.scaleFactor == 0f
+fun rodinAnimationsDisabled(): Boolean {
+    val context = LocalContext.current
+    return remember(context) {
+        try {
+            Settings.Global.getFloat(
+                context.contentResolver,
+                Settings.Global.ANIMATOR_DURATION_SCALE,
+                1f,
+            ) == 0f
+        } catch (_: Exception) {
+            false
+        }
+    }
+}
 
 @Composable
 fun rodinMotionBackgroundColor(): Color =

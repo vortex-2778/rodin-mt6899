@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.expand
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -258,7 +257,7 @@ fun RodinGalleryBrowser(
                             textAlign = TextAlign.Center,
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 color = colors.onSurfaceVariant,
-                                lineHeight = 1.35f * 14.sp,
+                                lineHeight = 14.sp * 1.35f,
                             ),
                         )
                     }

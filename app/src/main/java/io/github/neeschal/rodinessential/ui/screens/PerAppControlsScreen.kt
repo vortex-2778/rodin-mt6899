@@ -73,9 +73,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageVector
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
@@ -1480,6 +1480,7 @@ private fun PerAppChoice(
             BoxWithConstraints {
                 val fontScale = LocalDensity.current.fontScale
                 val twoColumns = maxWidth >= 260.dp && 12f * fontScale < 18f
+                val availableWidth = maxWidth
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -1487,7 +1488,7 @@ private fun PerAppChoice(
                     all.entries.filter { it.key != "global" }.forEach { entry ->
                         Box(
                             Modifier.width(
-                                if (twoColumns) (maxWidth - 8.dp) / 2 else maxWidth,
+                                if (twoColumns) (availableWidth - 8.dp) / 2 else availableWidth,
                             ),
                         ) {
                             tile(entry.key, entry.value, wide = false)

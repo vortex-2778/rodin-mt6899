@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -35,7 +36,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.defaultMinSize
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -80,7 +80,7 @@ fun HomeScreen(
         Spacer(Modifier.height(14.dp))
         SectionLabel("Live hardware")
         Spacer(Modifier.height(8.dp))
-        LiveOverviewGrid(onOpen = onOpen)
+        LiveOverviewGrid()
         Spacer(Modifier.height(14.dp))
         SectionLabel("Quick controls")
         Spacer(Modifier.height(8.dp))
@@ -220,14 +220,13 @@ private fun HomePulseHero(onOpen: (RodinScreen) -> Unit) {
                             .matchParentSize()
                             .background(
                                 Brush.linearGradient(
-                                    colors = listOf(
-                                        profileAccent.copy(alpha = if (dark) 0.15f else 0.12f),
-                                        colors.surface.copy(alpha = if (dark) 0.76f else 0.90f),
-                                        Color(0xFFB087FF).copy(alpha = if (dark) 0.06f else 0.045f),
+                                    colorStops = arrayOf(
+                                        0f to profileAccent.copy(alpha = if (dark) 0.15f else 0.12f),
+                                        0.58f to colors.surface.copy(alpha = if (dark) 0.76f else 0.90f),
+                                        1f to Color(0xFFB087FF).copy(alpha = if (dark) 0.06f else 0.045f),
                                     ),
                                     start = androidx.compose.ui.geometry.Offset.Zero,
                                     end = androidx.compose.ui.geometry.Offset.Infinite,
-                                    colorStops = arrayOf(0f, 0.58f, 1f),
                                 ),
                             ),
                     )

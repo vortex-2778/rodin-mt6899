@@ -51,10 +51,10 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
@@ -208,7 +208,6 @@ fun AuroraDrift(onBack: () -> Unit) {
     val reduced = rodinAnimationsDisabled()
     val colors = MaterialTheme.colorScheme
     val density = LocalDensity.current
-    val windowInfo = LocalWindowInfo.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
     val game = remember { AuroraGame() }
@@ -314,7 +313,7 @@ fun AuroraDrift(onBack: () -> Unit) {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    val heightDp = with(density) { windowInfo.containerSize.height.toDp() }
+    val heightDp = LocalConfiguration.current.screenHeightDp.dp
     // Reading the tick keeps score, lives and combo live without a second timer.
     val tick = frameTick
     val showOverlay = tick >= 0 && (!started || paused || game.finished)

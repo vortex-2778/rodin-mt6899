@@ -46,7 +46,7 @@ class RodinSystemColorsLibrary {
 
     fun load() {
         try {
-            val file = File(SystemColorsPreferences.storageDir ?: return, FILE_NAME)
+            val file = File(RodinSystemColorsPreferences.storageDir ?: return, FILE_NAME)
             if (!file.exists() || file.length() > MAX_LENGTH) return
             val decoded = JSONObject(file.readText())
             if (decoded.optInt("schema", -1) != 1) return
@@ -102,7 +102,7 @@ class RodinSystemColorsLibrary {
 
     private fun write() {
         try {
-            val directory = SystemColorsPreferences.storageDir ?: return
+            val directory = RodinSystemColorsPreferences.storageDir ?: return
             directory.mkdirs()
             val root = JSONObject()
                 .put("schema", 1)

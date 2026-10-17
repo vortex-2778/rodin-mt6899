@@ -32,14 +32,14 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Paint
-import androidx.compose.ui.graphics.asFrameworkPaint
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.input.pointer.IgnorePointer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import io.github.neeschal.rodinessential.ui.RodinScreen
+import io.github.neeschal.rodinessential.ui.components.RodinIgnorePointer
 import io.github.neeschal.rodinessential.ui.motion.RodinBackMotion
 import io.github.neeschal.rodinessential.ui.motion.RodinDetailTransition
 import io.github.neeschal.rodinessential.ui.motion.RodinMotionDiagnostics
@@ -369,7 +369,7 @@ private fun RodinShellScaffold(
                     ),
                 ),
         ) {
-            IgnorePointer(ignoring = !current.isRoot) {
+            RodinIgnorePointer(ignoring = !current.isRoot) {
                 RodinRootPager(
                     state = pagerState,
                     swipeEnabled = !rootSwipeLocked,

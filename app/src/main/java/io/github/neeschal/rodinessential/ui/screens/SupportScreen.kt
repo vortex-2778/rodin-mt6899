@@ -41,7 +41,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.neeschal.rodinessential.RodinReleaseIdentity
 import io.github.neeschal.rodinessential.platform.RodinPlatform
-import io.github.neeschal.rodinessential.ui.components.GithubIcon
 import io.github.neeschal.rodinessential.ui.components.PressScale
 import io.github.neeschal.rodinessential.ui.components.RodinAppEmblem
 import io.github.neeschal.rodinessential.ui.components.RodinHaptics

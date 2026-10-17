@@ -116,9 +116,7 @@ object RodinDaemonTransport {
         synchronized(this) {
             if (reverseListener != null) return
             val listener = try {
-                LocalServerSocket(
-                    LocalSocketAddress(REVERSE_SOCKET_NAME, LocalSocketAddress.Namespace.ABSTRACT),
-                )
+                LocalServerSocket(REVERSE_SOCKET_NAME)
             } catch (_: IOException) {
                 return
             }

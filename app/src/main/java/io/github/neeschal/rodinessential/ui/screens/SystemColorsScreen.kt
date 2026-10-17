@@ -49,12 +49,12 @@ import androidx.compose.material.icons.rounded.RestartAlt
 import androidx.compose.material.icons.rounded.SpaceBar
 import androidx.compose.material.icons.rounded.Tag
 import androidx.compose.material.icons.rounded.Wallpaper
-import androidx.compose.material3.ActionChip
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
-import androidx.compose.material3.ChoiceChip
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.InputChip
@@ -70,6 +70,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -83,8 +84,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageVector
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.input.pointer.pointerInput
@@ -290,7 +291,7 @@ fun SystemColorsPanel(
     var notice by remember { mutableStateOf<String?>(null) }
     var hapticStep by remember { mutableIntStateOf(-1) }
     val hapticClock = remember { SystemClock.elapsedRealtime() }
-    var lastHapticMs by remember { mutableIntStateOf(-100) }
+    var lastHapticMs by remember { mutableLongStateOf(-100L) }
     var libraryLoaded by remember { mutableStateOf(false) }
     var libraryTick by remember { mutableIntStateOf(0) }
     var hexDialogVisible by remember { mutableStateOf(false) }
@@ -335,56 +336,6 @@ fun SystemColorsPanel(
         notice = null
     }
 
-    fun select(update: () -> Unit) {
-        quietJob?.cancel()
-        quietJob = null
-        needsQuiet = false
-        // Feedback belongs to the gesture, never to a delayed daemon reply.
-        onSelectionFeedback()
-        edit(update)
-        scheduleApply()
-    }
-
-    fun scheduleApply(afterDrag: Boolean = false) {
-        val current = latestPalette
-        if (!latestOnline ||
-            current.failed ||
-            (current.hasReadback && !current.supported)
-        ) {
-            applyQueued = false
-            return
-        }
-        applyQueued = true
-        if (afterDrag) needsQuiet = true
-        dispatchWhenReady()
-    }
-
-    fun dispatchWhenReady() {
-        if (!applyQueued || sliding || activePointers.isNotEmpty()) return
-        if (needsQuiet) {
-            // An Android overlay update can cover the screen with a system
-            // snapshot; don't start one between two fine-tune gestures.
-            if (quietJob == null) {
-                quietJob = scope.launch {
-                    delay(280)
-                    quietJob = null
-                    needsQuiet = false
-                    dispatchWhenReady()
-                }
-            }
-            return
-        }
-        if (dispatchScheduled) return
-        dispatchScheduled = true
-        // Submission only queues native work; it never waits for Android.
-        scope.launch {
-            dispatchScheduled = false
-            if (applyQueued && !sliding && !needsQuiet && activePointers.isEmpty()) {
-                applySelection()
-            }
-        }
-    }
-
     fun applySelection() {
         val current = latestPalette
         if (!latestOnline ||
@@ -418,6 +369,56 @@ fun SystemColorsPanel(
         } else {
             notice = "Could not apply this selection. Refresh and select it again."
         }
+    }
+
+    fun dispatchWhenReady() {
+        if (!applyQueued || sliding || activePointers.isNotEmpty()) return
+        if (needsQuiet) {
+            // An Android overlay update can cover the screen with a system
+            // snapshot; don't start one between two fine-tune gestures.
+            if (quietJob == null) {
+                quietJob = scope.launch {
+                    delay(280)
+                    quietJob = null
+                    needsQuiet = false
+                    dispatchWhenReady()
+                }
+            }
+            return
+        }
+        if (dispatchScheduled) return
+        dispatchScheduled = true
+        // Submission only queues native work; it never waits for Android.
+        scope.launch {
+            dispatchScheduled = false
+            if (applyQueued && !sliding && !needsQuiet && activePointers.isEmpty()) {
+                applySelection()
+            }
+        }
+    }
+
+    fun scheduleApply(afterDrag: Boolean = false) {
+        val current = latestPalette
+        if (!latestOnline ||
+            current.failed ||
+            (current.hasReadback && !current.supported)
+        ) {
+            applyQueued = false
+            return
+        }
+        applyQueued = true
+        if (afterDrag) needsQuiet = true
+        dispatchWhenReady()
+    }
+
+    fun select(update: () -> Unit) {
+        quietJob?.cancel()
+        quietJob = null
+        needsQuiet = false
+        // Feedback belongs to the gesture, never to a delayed daemon reply.
+        onSelectionFeedback()
+        edit(update)
+        scheduleApply()
     }
 
     fun changeHsl(color: RodinHsl, hapticStepValue: Int) {
@@ -822,10 +823,10 @@ fun SystemColorsPanel(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             recents.forEach { (recentSeed, recentStyle) ->
-                                ActionChip(
+                                AssistChip(
                                     onClick = { choosePalette(recentSeed, recentStyle) },
                                     label = { Text(paletteHex(recentSeed)) },
-                                    avatar = {
+                                    leadingIcon = {
                                         Box(
                                             Modifier
                                                 .size(24.dp)
@@ -979,7 +980,7 @@ fun SystemColorsPanel(
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         for (index in 0 until styleCount) {
-                            ChoiceChip(
+                            FilterChip(
                                 selected = style == index,
                                 onClick = { select { style = index } },
                                 label = { Text(paletteStyleNames[index], fontSize = 12.sp) },
@@ -1187,7 +1188,7 @@ fun SystemColorsPanel(
                     ) {
                         listOf("Low" to -1000, "Standard" to 0, "High" to 1000)
                             .forEach { (label, value) ->
-                                ChoiceChip(
+                                FilterChip(
                                     selected = palette.contrastReady && palette.contrast == value,
                                     onClick = {
                                         onSelectionFeedback()

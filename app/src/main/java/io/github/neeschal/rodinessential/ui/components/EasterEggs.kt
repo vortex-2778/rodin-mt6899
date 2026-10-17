@@ -62,14 +62,15 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -186,7 +187,6 @@ private fun RodinSecretRoomHost(onDismiss: () -> Unit) {
     ) {
         val reduced = rodinAnimationsDisabled()
         val density = LocalDensity.current
-        val windowInfo = LocalWindowInfo.current
         val progress = remember { Animatable(if (reduced) 1f else 0f) }
         LaunchedEffect(Unit) {
             if (!reduced) {
@@ -201,9 +201,8 @@ private fun RodinSecretRoomHost(onDismiss: () -> Unit) {
         }
         val p = progress.value.coerceIn(0f, 1f)
         val scale = 0.94f + 0.06f * secretEaseOutBack.transform(p)
-        val maxHeight = with(density) {
-            windowInfo.containerSize.height.toDp() - 100.dp
-        }.coerceAtLeast(0.dp)
+        val maxHeight = (LocalConfiguration.current.screenHeightDp.dp - 100.dp)
+            .coerceAtLeast(0.dp)
 
         Box(
             Modifier
@@ -316,15 +315,18 @@ fun RodinSecretRoom(onClose: () -> Unit) {
 
     DisposableEffect(owner) {
         // Back leaves the game first, then the room: a nested owner, not a route.
-        RodinNestedBackController.attach(owner) {
-            if (playing) {
-                playing = false
-                true
-            } else {
-                currentOnClose()
-                true
-            }
-        }
+        RodinNestedBackController.attach(
+            owner = owner,
+            handler = {
+                if (playing) {
+                    playing = false
+                    true
+                } else {
+                    currentOnClose()
+                    true
+                }
+            },
+        )
         onDispose { RodinNestedBackController.detach(owner) }
     }
 
@@ -450,12 +452,16 @@ fun RodinSecretRoom(onClose: () -> Unit) {
                             RodinInteractionSettings.motionDuration(260),
                             easing = eggEaseOutCubic,
                         )
+                        val slideSpec = tween<IntOffset>(
+                            RodinInteractionSettings.motionDuration(260),
+                            easing = eggEaseOutCubic,
+                        )
                         (
-                            fadeIn(spec) + slideInVertically(spec) {
+                            fadeIn(spec) + slideInVertically(slideSpec) {
                                 (it * 0.07f).roundToInt()
                             }
                             ).togetherWith(
-                            fadeOut(spec) + slideOutVertically(spec) {
+                            fadeOut(spec) + slideOutVertically(slideSpec) {
                                 (it * 0.07f).roundToInt()
                             },
                         )

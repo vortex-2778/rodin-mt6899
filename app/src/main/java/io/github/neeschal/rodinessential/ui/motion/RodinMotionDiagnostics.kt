@@ -78,7 +78,7 @@ object RodinMotionDiagnostics {
             TAG,
             "RODIN_BACK_TIMINGS edge=$edge frames=${sorted.size} " +
                 "build_p95_us=${sorted[p95]} raster_p95_us=${sorted[p95]} " +
-                "build_max_us=${sorted.last} raster_max_us=${sorted.last} " +
+                "build_max_us=${sorted[sorted.size - 1]} raster_max_us=${sorted[sorted.size - 1]} " +
                 "over_8ms=$slow120 over_16ms=$slow60",
         )
         frames.clear()
