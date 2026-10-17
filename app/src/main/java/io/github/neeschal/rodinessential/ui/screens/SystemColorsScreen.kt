@@ -50,6 +50,7 @@ import androidx.compose.material.icons.rounded.SpaceBar
 import androidx.compose.material.icons.rounded.Tag
 import androidx.compose.material.icons.rounded.Wallpaper
 import androidx.compose.material3.ActionChip
+import androidx.compose.material3.Button
 import androidx.compose.material3.ChoiceChip
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ColorScheme
@@ -1374,5 +1375,319 @@ fun SystemColorsPanel(
             }
         }
 
+    }
+}
+
+@Composable
+private fun PaletteSeedTile(
+    name: String,
+    rgb: Int,
+    width: Dp,
+    selected: Boolean,
+    onTap: () -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    PressScale(enableHaptics = false, onTap = onTap) {
+        Column(
+            Modifier
+                .width(width)
+                .background(
+                    if (selected) {
+                        previewColor(rgb).copy(alpha = 0.09f)
+                    } else {
+                        Color.Transparent
+                    },
+                    RoundedCornerShape(18.dp),
+                )
+                .border(
+                    1.5.dp,
+                    if (selected) colors.onSurface else Color.Transparent,
+                    RoundedCornerShape(18.dp),
+                )
+                .padding(6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .background(previewColor(rgb), RoundedCornerShape(13.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (selected) {
+                    Icon(
+                        imageVector = Icons.Rounded.Check,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(21.dp),
+                    )
+                }
+            }
+            Spacer(Modifier.height(7.dp))
+            Text(
+                text = name,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontSize = 11.sp,
+                    fontWeight = if (selected) FontWeight.W700 else FontWeight.W500,
+                    color = colors.onSurface,
+                ),
+            )
+        }
+    }
+}
+
+@Composable
+private fun PaletteSeedSlider(
+    label: String,
+    value: Float,
+    min: Float,
+    max: Float,
+    trackColors: List<Color>,
+    thumbColor: Color,
+    onChanged: (Float) -> Unit,
+    onStart: () -> Unit,
+    onEnd: () -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    val formatted = if (label == "Hue") {
+        "${value.roundToInt()}°"
+    } else {
+        "${(value * 100f).roundToInt()}%"
+    }
+    Column(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = label,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.titleSmall.copy(
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.W600,
+                ),
+            )
+            Box(
+                Modifier
+                    .widthIn(min = 49.dp)
+                    .background(colors.surfaceContainerHighest, RoundedCornerShape(9.dp))
+                    .padding(horizontal = 9.dp, vertical = 4.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = formatted,
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.W700,
+                        color = colors.onSurface,
+                        fontFeatureSettings = "tnum",
+                    ),
+                )
+            }
+        }
+        PaletteGradientSlider(
+            value = value.coerceIn(min, max),
+            min = min,
+            max = max,
+            trackColors = trackColors,
+            thumbColor = thumbColor,
+            onChanged = onChanged,
+            onStart = onStart,
+            onEnd = onEnd,
+        )
+        Spacer(Modifier.height(8.dp))
+    }
+}
+
+/** Continuous slider with a gradient track and the layered palette thumb. */
+@Composable
+private fun PaletteGradientSlider(
+    value: Float,
+    min: Float,
+    max: Float,
+    trackColors: List<Color>,
+    thumbColor: Color,
+    onChanged: (Float) -> Unit,
+    onStart: () -> Unit,
+    onEnd: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    fun valueAt(x: Float, widthPx: Float): Float {
+        if (widthPx <= 0f) return min
+        val ratio = (x / widthPx).coerceIn(0f, 1f)
+        return min + ratio * (max - min)
+    }
+    Canvas(
+        modifier
+            .fillMaxWidth()
+            .height(40.dp)
+            .pointerInput(min, max) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val down = awaitFirstDown()
+                        onStart()
+                        onChanged(valueAt(down.position.x, size.width.toFloat()))
+                        var current = down
+                        while (current.pressed) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == current.id }
+                                ?: break
+                            if (change.pressed) {
+                                onChanged(valueAt(change.position.x, size.width.toFloat()))
+                                change.consume()
+                            }
+                            current = change
+                        }
+                        onEnd()
+                    }
+                }
+            },
+    ) {
+        val trackHeight = 12.dp.toPx()
+        val trackY = (size.height - trackHeight) / 2f
+        val corner = CornerRadius(6.dp.toPx())
+        val topLeft = Offset(0f, trackY)
+        val trackSize = Size(size.width, trackHeight)
+        drawRoundRect(
+            brush = Brush.horizontalGradient(trackColors),
+            topLeft = topLeft,
+            size = trackSize,
+            cornerRadius = corner,
+        )
+        drawRoundRect(
+            color = Color(0x26000000),
+            topLeft = topLeft,
+            size = trackSize,
+            cornerRadius = corner,
+            style = Stroke(width = 0.7.dp.toPx()),
+        )
+        val ratio = if (max > min) {
+            ((value - min) / (max - min)).coerceIn(0f, 1f)
+        } else {
+            0f
+        }
+        val center = Offset(ratio * size.width, size.height / 2f)
+        drawCircle(Color(0x35000000), 11.dp.toPx(), center)
+        drawCircle(Color.White, 10.dp.toPx(), center)
+        drawCircle(thumbColor, 7.dp.toPx(), center)
+    }
+}
+
+@Composable
+private fun PaletteSourceTile(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    selected: Boolean,
+    onTap: () -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    val accent = LocalRodinAppearance.current.activeAccent
+    val duration = RodinInteractionSettings.motionDuration(220)
+    val background by animateColorAsState(
+        targetValue = if (selected) accent.copy(alpha = 0.1f) else colors.surfaceContainerLow,
+        animationSpec = tween(duration),
+        label = "paletteSourceBg",
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (selected) {
+            accent.copy(alpha = 0.7f)
+        } else {
+            colors.outlineVariant.copy(alpha = 0.45f)
+        },
+        animationSpec = tween(duration),
+        label = "paletteSourceBorder",
+    )
+    PressScale(enableHaptics = false, onTap = onTap) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .background(background, RoundedCornerShape(20.dp))
+                .border(1.dp, borderColor, RoundedCornerShape(20.dp))
+                .padding(14.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = if (selected) accent else colors.onSurfaceVariant,
+                    modifier = Modifier.size(23.dp),
+                )
+                Spacer(Modifier.weight(1f))
+                Icon(
+                    imageVector = if (selected) {
+                        Icons.Rounded.CheckCircle
+                    } else {
+                        Icons.Rounded.RadioButtonUnchecked
+                    },
+                    contentDescription = null,
+                    tint = if (selected) accent else colors.outline,
+                    modifier = Modifier.size(19.dp),
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall.copy(
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.W700,
+                ),
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall.copy(
+                    fontSize = 11.5.sp,
+                    lineHeight = 16.1.sp,
+                    color = colors.onSurfaceVariant,
+                ),
+            )
+        }
+    }
+}
+
+@Composable
+private fun MaterialRolePreview(
+    label: String,
+    background: Color,
+    foreground: Color,
+) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(62.dp)
+            .background(background, RoundedCornerShape(16.dp)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleSmall.copy(
+                color = foreground,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.W700,
+            ),
+        )
+    }
+}
+
+@Composable
+private fun PaletteNotice(icon: ImageVector, text: String) {
+    val colors = MaterialTheme.colorScheme
+    Row(verticalAlignment = Alignment.Top) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = colors.onSurfaceVariant,
+            modifier = Modifier.size(18.dp),
+        )
+        Spacer(Modifier.width(9.dp))
+        Text(
+            text = text,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontSize = 12.sp,
+                lineHeight = 18.sp,
+                color = colors.onSurfaceVariant,
+            ),
+        )
     }
 }
