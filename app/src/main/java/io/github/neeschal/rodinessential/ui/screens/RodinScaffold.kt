@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -86,9 +87,9 @@ fun RodinScrollPage(
     modifier: Modifier = Modifier,
     header: RodinPageHeader? = null,
     topPadding: Dp = 10.dp,
+    scrollState: ScrollState = rememberScrollState(),
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val scrollState = rememberScrollState()
     val colors = MaterialTheme.colorScheme
     val dark = colors.surface.luminance() < 0.5f
     val velocity = remember { mutableFloatStateOf(0f) }
