@@ -55,18 +55,18 @@ privileged permissions. Kernel and vendor controls remain owned by the daemon.
 
 ## Status
 
-Source port in progress. Every file in this repository is committed and pushed
+Source port complete. Every file in this repository is committed and pushed
 individually as it is written.
 
 - [x] repository scaffold (licensing, Gradle, manifest, resources)
-- [ ] `RodinBackend` daemon client (transports, protocol 13.6, snapshot cache)
-- [ ] Material 3 theme, shell, and navigation
-- [ ] screens: Home, Charging, Touch, Display, Resolution, CPU, GPU, ZRAM,
+- [x] `RodinBackend` daemon client (transports, protocol 13.6, snapshot cache)
+- [x] Material 3 theme, shell, and navigation
+- [x] screens: Home, Charging, Touch, Display, Resolution, CPU, GPU, ZRAM,
       Diagnostics, Advanced configuration, Hubs, Support, Settings
-- [ ] Per-App Controls and Memory/Storage subsystem clocks
-- [ ] System Colors (Material You palettes, wallpaper, contrast)
-- [ ] Quick Settings bypass-charging tile
-- [ ] appearance extras (background styles, motion, easter eggs)
+- [x] Per-App Controls and Memory/Storage subsystem clocks
+- [x] System Colors (Material You palettes, wallpaper, contrast)
+- [x] Quick Settings bypass-charging tile
+- [x] appearance extras (background styles, motion, easter eggs)
 
 ## Build
 
