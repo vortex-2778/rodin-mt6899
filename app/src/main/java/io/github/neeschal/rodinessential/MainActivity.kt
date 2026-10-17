@@ -103,8 +103,22 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
     }
 
+    @Deprecated("The predictive path owns Back from API 33 on.")
+    override fun onBackPressed() {
+        // The 31/32 fallback: Back still reaches the shell, but it carries no
+        // progress, exactly like RodinActivity's nativeBack(4, 1, 0) path.
+        if (RodinBackDispatch.interceptEnabled) {
+            RodinBackDispatch.deliverBack(4, 1f, false)
+        } else {
+            @Suppress("DEPRECATION")
+            super.onBackPressed()
+        }
+    }
+
     private fun refreshBack() {
         val current = callback ?: return
+        // Below API 33 there is no dispatcher to register with.
+        if (Build.VERSION.SDK_INT < 33) return
         val wanted = resumed && RodinBackDispatch.interceptEnabled
         if (wanted == registered) return
         if (wanted) {
